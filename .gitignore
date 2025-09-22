@@ -1,0 +1,139 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+
+# Virtual Environments
+.env
+.venv
+venv/
+ENV/
+env/
+.venv311/
+
+# Environment Variables & Secrets
+*.env
+.env.*
+!.env.example
+config.json
+portfolio_config.json
+
+# API Keys & Wallets
+wallets/*.json
+!wallets/*.example.json
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+data/
+db_export_*/
+
+# Logs & Reports
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+reports/*.png
+reports/*.md
+!reports/README.md
+
+# Cache & Temporary Files
+cache/
+.cache/
+*.tmp
+*.temp
+.pytest_cache/
+.coverage
+htmlcov/
+.benchmarks/
+
+# ML Models & Data
+models/*.pkl
+models/*.onnx
+models/*.trt
+models/*.h5
+models/*.pt
+models/*.pth
+!models/README.md
+
+# Backups
+backup/*.rar
+backup/*.zip
+backup/*.tar.gz
+
+# Node.js (Dashboard)
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE & Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Trading Bot Specific
+bot_state_backup.json
+portfolio_state_backup.json
+trade_history_*.json
+snapshots/
+ai_optimization/
+trades/
