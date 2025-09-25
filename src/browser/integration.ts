@@ -11,12 +11,12 @@ export class BrowserMCPIntegration {
     this.config = config;
     this.playerConfig = {
       selectors: {
-        video: 'video',
-        playButton: '[data-testid="play-button"], .ytp-play-button, .play-button',
-        progressBar: '.ytp-progress-bar, .progress-bar',
-        subtitle: '.ytp-caption-segment, .subtitle, .caption'
+        video: 'video, iframe[src*="player"], .video-player video, .player video, #player video',
+        playButton: '[data-testid="play-button"], .ytp-play-button, .play-button, .play-btn, .btn-play',
+        progressBar: '.ytp-progress-bar, .progress-bar, .seek-bar, .progress',
+        subtitle: '.ytp-caption-segment, .subtitle, .caption, .subtitle-text, .captions'
       },
-      platform: 'youtube'
+      platform: 'aniworld'
     };
   }
 
@@ -71,10 +71,67 @@ export class BrowserMCPIntegration {
       // Cookie-Banner automatisch wegklicken
       await this.handleCookieBanners();
 
+      // Automatisch den Play-Button klicken
+      await this.startVideo();
+
       console.log('✅ Navigation erfolgreich!');
     } catch (error) {
       console.error('❌ Fehler bei der Navigation:', error);
       throw error;
+    }
+  }
+
+  private async startVideo(): Promise<void> {
+    if (!this.page) {
+      return;
+    }
+
+    try {
+      console.log('▶️ Suche nach AniWorld Webplayer...');
+      
+      // Warte auf das Laden der Seite
+      await this.page.waitForTimeout(3000);
+
+      // Scroll nur ein kleines Stück runter zum Player
+      console.log('📜 Scrolle runter zum Player...');
+      await this.page.evaluate(() => {
+        window.scrollTo(0, 300); // Kleines Stück runter zum Player-Bereich
+      });
+      await this.page.waitForTimeout(2000);
+
+      // Klicke auf den iframe oder fakePlayer in der Mitte
+      console.log('🎬 Klicke auf den Player-Bereich...');
+      
+      // Klicke auf den iframe oder fakePlayer
+      const playerSelectors = [
+        'iframe[src*="redirect"]',
+        '.fakePlayer',
+        '.inSiteWebStream',
+        '.hosterSiteVideo'
+      ];
+
+      for (const selector of playerSelectors) {
+        try {
+          const player = await this.page.$(selector);
+          if (player) {
+            console.log(`✅ Player-Bereich gefunden: ${selector}`);
+            await player.click();
+            console.log('▶️ Video gestartet!');
+            await this.page.waitForTimeout(3000);
+            return;
+          }
+        } catch (error) {
+          // Ignoriere Fehler bei einzelnen Selektoren
+        }
+      }
+
+      // Fallback: Klicke in die Mitte des Player-Bereichs
+      console.log('🎯 Klicke in die Mitte des Player-Bereichs...');
+      await this.page.click('body', { offset: { x: 500, y: 300 } });
+      console.log('▶️ Video gestartet!');
+      await this.page.waitForTimeout(3000);
+    } catch (error) {
+      console.log('⚠️ Fehler beim Starten des Videos:', error);
     }
   }
 
@@ -161,12 +218,52 @@ export class BrowserMCPIntegration {
       console.log('📸 Erfasse Frame...');
       
       // Warte auf das Laden der Seite
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(2000);
 
-      // Screenshot des Video-Elements
-      const videoElement = await this.page.$(this.playerConfig.selectors.video);
+      // Versuche verschiedene Video-Selektoren
+      let videoElement = null;
+      const videoSelectors = [
+        'video',
+        'iframe[src*="player"]',
+        '.video-player video',
+        '.player video',
+        '#player video',
+        '.stream-player video',
+        '.anime-player video'
+      ];
+
+      for (const selector of videoSelectors) {
+        try {
+          videoElement = await this.page.$(selector);
+          if (videoElement) {
+            console.log(`✅ Video-Element gefunden mit Selektor: ${selector}`);
+            break;
+          }
+        } catch (error) {
+          // Ignoriere Fehler bei einzelnen Selektoren
+        }
+      }
+
       if (!videoElement) {
-        throw new Error('Video-Element nicht gefunden');
+        // Fallback: Screenshot der gesamten Seite
+        console.log('⚠️ Kein Video-Element gefunden, mache Screenshot der gesamten Seite');
+        const screenshot = await this.page.screenshot({
+          encoding: 'base64',
+          fullPage: false
+        });
+
+        const frameData: FrameData = {
+          id: `frame_${Date.now()}`,
+          movieId: 'unknown',
+          timestamp: Date.now(),
+          imageData: screenshot as string,
+          width: 1920,
+          height: 1080,
+          extractedAt: new Date()
+        };
+
+        console.log('✅ Screenshot der Seite erfasst!');
+        return frameData;
       }
 
       const screenshot = await videoElement.screenshot({
@@ -178,8 +275,8 @@ export class BrowserMCPIntegration {
         movieId: 'unknown',
         timestamp: Date.now(),
         imageData: screenshot as string,
-        width: 3840,
-        height: 2160,
+        width: 1920,
+        height: 1080,
         extractedAt: new Date()
       };
 

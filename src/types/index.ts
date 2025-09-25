@@ -117,7 +117,7 @@ export interface BrowserElement {
 }
 
 export interface WebPlayerConfig {
-  platform: 'netflix' | 'prime' | 'youtube' | 'disney' | 'generic';
+  platform: 'netflix' | 'prime' | 'youtube' | 'disney' | 'generic' | 'aniworld';
   selectors: {
     video: string;
     subtitle: string;

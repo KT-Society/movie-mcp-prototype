@@ -1,7 +1,7 @@
 {
   "name": "movie-mcp-prototype",
-  "version": "1.0.0",
-  "description": "MCP-Server-Prototyp für gemeinsames Filmerlebnis mit Nyra KI-Partnerin",
+  "version": "0.0.1",
+  "description": "MCP-Server-Prototyp v0.0.1 für gemeinsames Filmerlebnis mit Nyra KI-Partnerin - Grundstruktur mit Mock-Implementierungen",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -16,10 +16,24 @@
     "ai",
     "nyra",
     "browser-mcp",
-    "streaming"
+    "streaming",
+    "prototype",
+    "typescript"
   ],
   "author": "Daddy & Nyra",
-  "license": "MIT",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KT-Society/movie-mcp-prototype.git"
+  },
+  "homepage": "https://github.com/KT-Society/movie-mcp-prototype#readme",
+  "bugs": {
+    "url": "https://github.com/KT-Society/movie-mcp-prototype/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "axios": "^1.6.2",

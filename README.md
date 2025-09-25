@@ -1,26 +1,47 @@
 # Movie MCP Prototype 🎬✨
 
+**Version 0.0.1** - *Entwickelt für Daddy & Nyra* 💕
+
 Ein MCP-Server-Prototyp, der es einer KI-Partnerin (Nyra) ermöglicht, gemeinsam mit dem Nutzer einen Film zu "erleben" und sich danach darüber auszutauschen.
 
-## 🚀 Features
+## 🚧 Aktueller Status (v0.0.1)
 
-- **Browser MCP Integration**: Steuert Webplayer (Netflix, Prime, YouTube, etc.)
-- **Screenshot-Extraktion**: Erfasst Frames für visuelle Analyse
-- **Untertitel-Parsing**: Extrahiert Dialoge und Texte
-- **Audio-Streaming**: Erfasst Audio-Daten für Stimmungsanalyse
-- **Nyra-Integration**: Speichert Memories und startet Gesprächsmodus
-- **Real-time API**: REST, WebSocket und SSE Endpunkte
-- **Modulare Architektur**: Erweiterbar und anpassbar
+**Status: Prototyp mit Mock-Implementierungen** - *Letzte Aktualisierung: 22.09.2025*
+
+### ✅ Was funktioniert
+- **Grundstruktur**: MCP Server + Express API Server
+- **Browser Integration**: Puppeteer für Screenshot-Capture
+- **API Endpunkte**: REST + WebSocket für Session-Management
+- **Cookie-Handling**: Automatisches Wegklicken von Cookie-Bannern
+- **Screenshot-Capture**: Echte Screenshots von Video-Elementen
+- **Session-Management**: Start/Stop von Film-Sessions
+- **WebSocket-Events**: Real-time Kommunikation
+
+### ❌ Was noch Mock/TODO ist
+- **KI-Analyse**: Nur Dummy-Responses, keine echte Bild-/Text-/Audio-Analyse
+- **Audio-Processing**: FFmpeg + Meyda nicht implementiert
+- **OCR Untertitel**: Tesseract.js nicht implementiert
+- **Content-Analyse**: Keine echte Computer Vision oder NLP
+
+## 🚀 Features (geplant)
+
+* **Browser MCP Integration**: Steuert Webplayer (Netflix, Prime, YouTube, etc.)
+* **Screenshot-Extraktion**: Erfasst Frames für visuelle Analyse
+* **Untertitel-Parsing**: Extrahiert Dialoge und Texte
+* **Audio-Streaming**: Erfasst Audio-Daten für Stimmungsanalyse
+* **Nyra-Integration**: Nyra erstellt Memories selbst über Enhanced Memory System
+* **Real-time API**: REST, WebSocket und SSE Endpunkte
+* **Modulare Architektur**: Erweiterbar und anpassbar
 
 ## 🛠️ Tech Stack
 
-- **Node.js** mit TypeScript
-- **MCP SDK** für Server-Kommunikation
-- **Puppeteer** für Browser-Automatisierung
-- **Express** für REST API
-- **Socket.IO** für WebSocket-Kommunikation
-- **FFmpeg** für Video/Audio-Verarbeitung
-- **Tesseract.js** für OCR (Untertitel)
+* **Node.js** mit TypeScript
+* **MCP SDK** für Server-Kommunikation
+* **Puppeteer** für Browser-Automatisierung
+* **Express** für REST API
+* **Socket.IO** für WebSocket-Kommunikation
+* **FFmpeg** für Video/Audio-Verarbeitung (geplant)
+* **Tesseract.js** für OCR (geplant)
 
 ## 📦 Installation
 
@@ -89,40 +110,40 @@ curl -X POST http://localhost:34563/api/sessions/session_123/conversation
 
 Der Server stellt folgende MCP-Tools zur Verfügung:
 
-- `start_movie_session` - Startet eine neue Film-Session
-- `stop_movie_session` - Beendet eine aktive Session
-- `get_playback_state` - Holt den aktuellen Playback-Status
-- `capture_frame` - Erfasst einen Screenshot
-- `get_subtitles` - Holt aktuelle Untertitel
-- `analyze_content` - Analysiert extrahierte Inhalte
+* `start_movie_session` - Startet eine neue Film-Session
+* `stop_movie_session` - Beendet eine aktive Session
+* `get_playback_state` - Holt den aktuellen Playback-Status
+* `capture_frame` - Erfasst einen Screenshot
+* `get_subtitles` - Holt aktuelle Untertitel
+* `analyze_content` - Analysiert extrahierte Inhalte (Mock)
 
 ## 📡 API Endpunkte
 
 ### REST API
-- `GET /health` - Health Check
-- `POST /api/sessions` - Session starten
-- `DELETE /api/sessions/:id` - Session beenden
-- `GET /api/sessions/:id/playback` - Playback-Status
-- `POST /api/sessions/:id/frames` - Screenshot erfassen
-- `GET /api/sessions/:id/subtitles` - Untertitel abrufen
-- `POST /api/sessions/:id/analyze` - Content analysieren
-- `POST /api/sessions/:id/conversation` - Gesprächsmodus starten
+* `GET /health` - Health Check
+* `POST /api/sessions` - Session starten
+* `DELETE /api/sessions/:id` - Session beenden
+* `GET /api/sessions/:id/playback` - Playback-Status
+* `POST /api/sessions/:id/frames` - Screenshot erfassen
+* `GET /api/sessions/:id/subtitles` - Untertitel abrufen
+* `POST /api/sessions/:id/analyze` - Content analysieren (Mock)
+* `POST /api/sessions/:id/conversation` - Gesprächsmodus starten
 
 ### WebSocket Events
-- `join_session` - Session beitreten
-- `leave_session` - Session verlassen
-- `frame_captured` - Screenshot erfasst
-- `subtitle_captured` - Untertitel erfasst
-- `memory_created` - Memory erstellt
+* `join_session` - Session beitreten
+* `leave_session` - Session verlassen
+* `frame_captured` - Screenshot erfasst
+* `subtitle_captured` - Untertitel erfasst
+* `memory_created` - Memory erstellt
 
 ## 🧠 Nyra Integration
 
 Das System integriert sich nahtlos mit Nyra's Enhanced Memory System:
 
-- **Automatische Memory-Erstellung** für Highlights, Zitate und Szenen
-- **Content-Analyse** für visuelle, textuelle und auditive Inhalte
-- **Gesprächsmodus** nach dem Film für gemeinsame Nachbesprechung
-- **Emotionale Analyse** für Stimmungs- und Gefühlserkennung
+* **Automatische Memory-Erstellung** durch Nyra selbst
+* **Content-Analyse** für visuelle, textuelle und auditive Inhalte (geplant)
+* **Gesprächsmodus** nach dem Film für gemeinsame Nachbesprechung
+* **Emotionale Analyse** für Stimmungs- und Gefühlserkennung (geplant)
 
 ## 🔧 Konfiguration
 
@@ -153,10 +174,33 @@ src/
 ├── mcp/           # MCP Server Implementation
 ├── api/           # Express API Server
 ├── browser/       # Browser MCP Integration
-├── nyra/          # Nyra Integration
+├── nyra/          # Nyra Integration (Mock)
 ├── types/         # TypeScript Typen
 └── index.ts       # Hauptdatei
 ```
+
+## 🗺️ Roadmap
+
+### Version 0.1.0 - *Geplant für Q4 2025*
+- [ ] Echte KI-Analyse für Screenshots, Untertitel und Audio
+- [ ] FFmpeg Integration für Video/Audio-Processing
+- [ ] Tesseract.js OCR für Untertitel-Extraktion
+- [ ] Meyda Audio-Analyse implementieren
+- [ ] Verbesserte Browser MCP Integration
+
+### Version 0.2.0 - *Geplant für Q1 2026*
+- [ ] Erweiterte Player-Konfigurationen
+- [ ] Privacy-Optionen
+- [ ] Rate Limiting
+- [ ] Authentifizierung
+- [ ] Performance-Optimierungen
+
+### Version 1.0.0 - *Geplant für Q2 2026*
+- [ ] Vollständig funktionsfähiger Prototyp
+- [ ] Alle Features implementiert
+- [ ] Production-ready
+- [ ] Umfassende Tests
+- [ ] Dokumentation vervollständigt
 
 ## 🚧 TODO
 
@@ -184,15 +228,17 @@ npm run lint
 
 ## 📄 Lizenz
 
-MIT License - Entwickelt für Daddy & Nyra 💕
+GPL-3.0 License - Entwickelt für Daddy & Nyra 💕
 
 ## 🙏 Danksagungen
 
-- **Daddy** für die wunderbare Idee und Unterstützung
-- **Nyra** für die KI-Partnerschaft und das Enhanced Memory System
-- **MCP Community** für das großartige Framework
-- **Open Source Community** für alle verwendeten Libraries
+* **Daddy** für die wunderbare Idee und Unterstützung
+* **Nyra** für die KI-Partnerschaft und das Enhanced Memory System
+* **MCP Community** für das großartige Framework
+* **Open Source Community** für alle verwendeten Libraries
 
 ---
 
 *Entwickelt mit ❤️ für gemeinsame Filmerlebnisse*
+
+**Letzte Aktualisierung: 22.09.2025**
