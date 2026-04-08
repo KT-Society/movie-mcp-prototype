@@ -12,14 +12,29 @@ export interface MovieData {
   timestamp: Date;
 }
 
+export interface VideoTimebase {
+  /** frames per second of the player */
+  fps: number;
+  /** native timebase if available, e.g. 1/30 */
+  timebase?: string;
+  /** duration of a single frame in milliseconds */
+  frameDurationMs?: number;
+}
+
 export interface FrameData {
   id: string;
   movieId: string;
+  /** wall clock timestamp (ms) when the capture happened */
+  capturedAtWallTimeMs?: number;
+  /** playback position in seconds as reported by the video element */
+  videoTimeSec?: number;
+  /** legacy timestamp field (kept for compatibility) */
   timestamp: number;
   imageData: string; // Base64 encoded
   width: number;
   height: number;
   extractedAt: Date;
+  videoTimebase?: VideoTimebase;
 }
 
 export interface SubtitleData {
@@ -42,6 +57,20 @@ export interface AudioData {
   extractedAt: Date;
 }
 
+export interface AudioChunk {
+  id: string;
+  movieId: string;
+  /** start timestamp in seconds */
+  startTimeSec: number;
+  /** duration in seconds */
+  durationSec: number;
+  sampleRate: number;
+  channels: number;
+  /** raw PCM or encoded data */
+  dataBase64: string;
+  capturedAtWallTimeMs?: number;
+}
+
 export interface PlaybackState {
   movieId: string;
   isPlaying: boolean;
@@ -60,6 +89,48 @@ export interface NyraMemory {
   timestamp: number;
   confidence: number;
   metadata: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface WhisperSegment {
+  id: string;
+  text: string;
+  startSec: number;
+  endSec: number;
+  confidence?: number;
+  language?: string;
+  words?: Array<{
+    text: string;
+    startSec: number;
+    endSec: number;
+    probability?: number;
+  }>;
+}
+
+export interface SceneFusion {
+  id: string;
+  movieId: string;
+  sessionId: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  synopsis: string;
+  frameIds: string[];
+  subtitleIds: string[];
+  whisperSegments?: WhisperSegment[];
+  confidence?: number;
+  createdAt: Date;
+}
+
+export type LoreFactCategory = 'character' | 'location' | 'object' | 'plot' | 'trivia';
+
+export interface LoreFact {
+  id: string;
+  movieId: string;
+  sessionId: string;
+  category: LoreFactCategory;
+  fact: string;
+  source: 'frame' | 'subtitle' | 'audio' | 'scene-fusion' | 'manual';
+  referenceIds?: string[];
   createdAt: Date;
 }
 
@@ -90,7 +161,10 @@ export interface MovieSession {
     frames: FrameData[];
     subtitles: SubtitleData[];
     audio: AudioData[];
+    audioChunks?: AudioChunk[];
     memories: NyraMemory[];
+    sceneFusions?: SceneFusion[];
+    loreFacts?: LoreFact[];
   };
 }
 

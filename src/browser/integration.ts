@@ -252,10 +252,12 @@ export class BrowserMCPIntegration {
           fullPage: false
         });
 
+        const now = Date.now();
         const frameData: FrameData = {
-          id: `frame_${Date.now()}`,
+          id: `frame_${now}`,
           movieId: 'unknown',
-          timestamp: Date.now(),
+          capturedAtWallTimeMs: now,
+          timestamp: now,
           imageData: screenshot as string,
           width: 1920,
           height: 1080,
@@ -270,14 +272,23 @@ export class BrowserMCPIntegration {
         encoding: 'base64'
       });
 
+      const now = Date.now();
+      const videoTimeSec = await this.page.evaluate((selectors: WebPlayerConfig['selectors']) => {
+        const video = document.querySelector(selectors.video) as HTMLVideoElement | null;
+        return video?.currentTime ?? undefined;
+      }, this.playerConfig.selectors);
+
       const frameData: FrameData = {
-        id: `frame_${Date.now()}`,
+        id: `frame_${now}`,
         movieId: 'unknown',
-        timestamp: Date.now(),
+        capturedAtWallTimeMs: now,
+        ...(videoTimeSec !== undefined ? { videoTimeSec } : {}),
+        timestamp: now,
         imageData: screenshot as string,
         width: 1920,
         height: 1080,
-        extractedAt: new Date()
+        extractedAt: new Date(),
+        ...(videoTimeSec !== undefined ? { videoTimebase: { fps: 30, frameDurationMs: 1000 / 30 } } : {})
       };
 
       console.log('✅ Frame erfasst!');
@@ -296,7 +307,7 @@ export class BrowserMCPIntegration {
     try {
       console.log('📝 Extrahiere Untertitel...');
       
-      const subtitles = await this.page.evaluate((selectors) => {
+      const subtitles = await this.page.evaluate((selectors: WebPlayerConfig['selectors']) => {
         const subtitleElements = document.querySelectorAll(selectors.subtitle);
         const subtitleData: SubtitleData[] = [];
 
@@ -334,7 +345,7 @@ export class BrowserMCPIntegration {
     try {
       console.log('▶️ Ermittle Playback-Status...');
       
-      const state = await this.page.evaluate((selectors) => {
+      const state = await this.page.evaluate((selectors: WebPlayerConfig['selectors']) => {
         const video = document.querySelector(selectors.video) as HTMLVideoElement;
         if (!video) {
           return {
