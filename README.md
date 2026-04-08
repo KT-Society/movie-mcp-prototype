@@ -4,7 +4,7 @@
 
 Ein MCP-Server-Prototyp, der es einer KI-Partnerin (Nyra) ermöglicht, gemeinsam mit dem Nutzer einen Film zu "erleben" und sich danach darüber auszutauschen.
 
-## 🚧 Aktueller Status (v0.0.1)
+## 🚧 Aktueller Status (v1.0.1)
 
 **Status: Prototyp mit Mock-Implementierungen** - *Letzte Aktualisierung: 22.09.2025*
 
