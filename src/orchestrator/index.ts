@@ -1,5 +1,7 @@
 import { BrowserMCPIntegration } from '../browser/integration.js';
 import { NyraIntegration } from '../nyra/integration.js';
+import { ParakeetSTTService } from '../services/parakeetSTT.js';
+import { AudioExtractionService } from '../services/audioExtractor.js';
 import {
   FrameData,
   SubtitleData,
@@ -9,17 +11,23 @@ import {
   MovieSession,
   AudioChunk,
   LoreFactCategory,
+  TranscriptionResult,
 } from '../types/index.js';
 
 export class Orchestrator {
   private browser: BrowserMCPIntegration;
   private nyra: NyraIntegration;
+  private sttService: ParakeetSTTService;
+  private audioExtractor: AudioExtractionService;
   private loreStore: Map<string, LoreFact[]> = new Map();
   private sceneFusionStore: Map<string, SceneFusion[]> = new Map();
+  private transcriptionStore: Map<string, TranscriptionResult[]> = new Map();
 
   constructor(browser: BrowserMCPIntegration, nyra: NyraIntegration) {
     this.browser = browser;
     this.nyra = nyra;
+    this.sttService = new ParakeetSTTService();
+    this.audioExtractor = new AudioExtractionService();
   }
 
   async captureFrameWithTiming(session: MovieSession): Promise<FrameData> {
@@ -142,5 +150,46 @@ export class Orchestrator {
 
   async handleAudioChunk(_chunk: AudioChunk) {
     return { success: true };
+  }
+
+  async transcribeAudioChunk(chunk: AudioChunk): Promise<TranscriptionResult> {
+    console.log(`🎙️ Transkribiere Audio-Chunk im Orchestrator: ${chunk.id}`);
+    const result = await this.sttService.transcribeAudioChunk(chunk);
+    
+    const existing = this.transcriptionStore.get(chunk.movieId) || [];
+    existing.push(result);
+    this.transcriptionStore.set(chunk.movieId, existing);
+    
+    return result;
+  }
+
+  async extractAndTranscribeAudio(
+    session: MovieSession,
+    startTimeSec: number,
+    durationSec: number
+  ): Promise<TranscriptionResult> {
+    console.log(`🎙️ Extrahiere und transkribiere: ${startTimeSec}s - ${startTimeSec + durationSec}s`);
+    
+    const result = await this.sttService.extractAndTranscribe(
+      session.id,
+      startTimeSec,
+      durationSec
+    );
+    
+    if (result.segments.length > 0) {
+      const existing = this.transcriptionStore.get(session.movieId) || [];
+      existing.push(result);
+      this.transcriptionStore.set(session.movieId, existing);
+    }
+    
+    return result;
+  }
+
+  async getTranscriptions(movieId: string): Promise<TranscriptionResult[]> {
+    return this.transcriptionStore.get(movieId) || [];
+  }
+
+  setSTTLanguage(language: string): void {
+    this.sttService.setLanguage(language);
   }
 }

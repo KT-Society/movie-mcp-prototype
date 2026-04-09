@@ -490,6 +490,98 @@ export class APIServer {
         });
       }
     });
+
+    // STT - Transcribe audio chunk
+    this.app.post('/api/sessions/:sessionId/transcribe', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const { startTimeSec, durationSec = 10 } = req.body;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const result = await this.orchestrator.extractAndTranscribeAudio(
+          session,
+          startTimeSec,
+          durationSec
+        );
+
+        this.io.emit('transcription_completed', {
+          sessionId,
+          result
+        });
+
+        return res.json({
+          success: true,
+          data: result
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // STT - Get transcriptions
+    this.app.get('/api/sessions/:sessionId/transcriptions', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const transcriptions = await this.orchestrator.getTranscriptions(session.movieId);
+
+        return res.json({
+          success: true,
+          data: transcriptions
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // STT - Set language
+    this.app.post('/api/sessions/:sessionId/stt-language', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const { language } = req.body;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        this.orchestrator.setSTTLanguage(language);
+
+        return res.json({
+          success: true,
+          message: `STT-Sprache auf ${language} gesetzt`
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
   }
 
   private setupWebSocket(): void {

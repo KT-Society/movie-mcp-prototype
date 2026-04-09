@@ -53,7 +53,8 @@
     "socket.io": "^4.7.5",
     "subtitle": "^0.0.1",
     "tesseract.js": "^5.0.4",
-    "ws": "^8.14.2"
+    "ws": "^8.14.2",
+    "node-audio-extract": "^1.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

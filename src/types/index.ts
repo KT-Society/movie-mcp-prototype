@@ -259,3 +259,38 @@ export interface AudioAnalysisResult {
   speechDetected: boolean;
   metadata: Record<string, any>;
 }
+
+// Parakeet STT Types
+export interface STTConfig {
+  modelType: 'parakeet-tdt' | 'parakeet-ctc' | 'fast-conformer';
+  sampleRate: number;
+  language?: string;
+  useVAD?: boolean;
+}
+
+export interface AudioExtractionResult {
+  audioBuffer: Buffer;
+  sampleRate: number;
+  duration: number;
+  channels: number;
+  format: 'wav' | 'mp3' | 'ogg';
+}
+
+export interface TranscriptionResult {
+  text: string;
+  segments: WhisperSegment[];
+  language: string;
+  duration: number;
+  confidence: number;
+}
+
+export interface AudioChunk {
+  id: string;
+  movieId: string;
+  startTimeSec: number;
+  durationSec: number;
+  sampleRate: number;
+  channels: number;
+  dataBase64: string;
+  capturedAtWallTimeMs?: number;
+}
