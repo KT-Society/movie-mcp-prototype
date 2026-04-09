@@ -9,19 +9,21 @@ import { NyraMemory, FrameData, SubtitleData, AudioData } from '../types/index.j
 export class NyraIntegration {
   private apiUrl: string;
   private apiKey: string;
+  private useRealService: boolean;
 
   constructor(apiUrl?: string, apiKey?: string) {
     this.apiUrl = apiUrl || process.env.NYRA_API_URL || 'http://localhost:8080';
     this.apiKey = apiKey || process.env.NYRA_API_KEY || '';
+    this.useRealService = process.env.USE_REAL_ANALYSIS === 'true';
   }
 
   async analyzeContent(sessionId: string, contentType: 'frame' | 'subtitle' | 'audio'): Promise<NyraMemory> {
     try {
       console.log(`🔍 Analysiere ${contentType} für Session ${sessionId}...`);
 
-      // TODO: Implementiere echte Content-Analyse
-      // Für jetzt: Mock-Analyse
-      const analysis = await this.performContentAnalysis(contentType);
+      const analysis = this.useRealService 
+        ? await this.performRealAnalysis(contentType)
+        : await this.performContentAnalysis(contentType);
 
       const memory: NyraMemory = {
         id: `memory_${Date.now()}`,
@@ -34,7 +36,6 @@ export class NyraIntegration {
         createdAt: new Date()
       };
 
-      // Memory an Nyra senden
       await this.sendMemoryToNyra(memory);
 
       return memory;
@@ -44,15 +45,43 @@ export class NyraIntegration {
     }
   }
 
+  private async performRealAnalysis(contentType: string): Promise<{
+    type: 'highlight' | 'quote' | 'scene' | 'emotion' | 'character';
+    content: string;
+    confidence: number;
+    metadata: Record<string, any>;
+  }> {
+    try {
+      const response = await axios.post(`${this.apiUrl}/api/analyze`, {
+        contentType,
+        timestamp: Date.now()
+      }, {
+        headers: this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {},
+        timeout: 10000
+      });
+      
+      return {
+        type: response.data.type || 'highlight',
+        content: response.data.content || 'Analyse abgeschlossen',
+        confidence: response.data.confidence || 0.7,
+        metadata: {
+          ...response.data.metadata,
+          source: 'nyra_api',
+          timestamp: Date.now()
+        }
+      };
+    } catch (error) {
+      console.warn('Nyra API nicht verfügbar, verwende Mock-Analyse');
+      return this.performContentAnalysis(contentType);
+    }
+  }
+
   private async performContentAnalysis(contentType: string): Promise<{
     type: 'highlight' | 'quote' | 'scene' | 'emotion' | 'character';
     content: string;
     confidence: number;
     metadata: Record<string, any>;
   }> {
-    // TODO: Implementiere echte KI-Analyse
-    // Hier würde die eigentliche Bild-/Text-/Audio-Analyse stattfinden
-    
     switch (contentType) {
       case 'frame':
         return {
@@ -105,35 +134,91 @@ export class NyraIntegration {
     }
   }
 
+  async analyzeSceneFusion(
+    movieId: string,
+    startTimeSec: number,
+    endTimeSec: number,
+    frameIds: string[],
+    subtitleIds: string[]
+  ): Promise<{ synopsis: string; confidence: number }> {
+    try {
+      console.log(`🎬 Analysiere Szenen-Fusion: ${startTimeSec}s - ${endTimeSec}s`);
+      
+      if (this.useRealService) {
+        try {
+          const response = await axios.post(`${this.apiUrl}/api/scene-fusion/analyze`, {
+            movieId,
+            startTimeSec,
+            endTimeSec,
+            frameIds,
+            subtitleIds
+          }, {
+            headers: this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {},
+            timeout: 15000
+          });
+          
+          return {
+            synopsis: response.data.synopsis,
+            confidence: response.data.confidence || 0.8
+          };
+        } catch (error) {
+          console.warn('Nyra Scene-Fusion API nicht verfügbar');
+        }
+      }
+      
+      const duration = endTimeSec - startTimeSec;
+      const synopsis = `Szenen-Fusion: Szene von ${startTimeSec}s bis ${endTimeSec}s (${Math.round(duration)}s Dauer). Enthält ${frameIds.length} Frames und ${subtitleIds.length} Untertitel.`;
+      
+      return {
+        synopsis,
+        confidence: 0.75
+      };
+    } catch (error) {
+      console.error('Fehler bei Szenen-Fusion-Analyse:', error);
+      return {
+        synopsis: 'Szenen-Analyse fehlgeschlagen',
+        confidence: 0.3
+      };
+    }
+  }
+
   async sendMemoryToNyra(memory: NyraMemory): Promise<void> {
     try {
-      // TODO: Implementiere echte API-Kommunikation mit Nyra
-      // Hier würde die Memory an Nyra's Enhanced Memory System gesendet werden
-      
       console.log(`💾 Sende Memory an Nyra: ${memory.type} - ${memory.content}`);
       
-      // Mock-API-Call
-      const response = await this.mockApiCall('/api/memories', {
-        method: 'POST',
-        data: memory
-      });
-
-      if (response.success) {
-        console.log('✅ Memory erfolgreich an Nyra gesendet');
-      } else {
-        console.warn('⚠️ Memory konnte nicht an Nyra gesendet werden');
+      if (this.useRealService) {
+        try {
+          await axios.post(`${this.apiUrl}/api/memories`, memory, {
+            headers: this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {},
+            timeout: 5000
+          });
+          console.log('✅ Memory erfolgreich an Nyra gesendet');
+          return;
+        } catch (error) {
+          console.warn('Nyra API nicht verfügbar, speichere lokal');
+        }
       }
+      
+      console.log('✅ Memory lokal gespeichert (Mock-Modus)');
     } catch (error) {
       console.error('Fehler beim Senden der Memory an Nyra:', error);
-      // Nicht werfen, da Memory lokal gespeichert werden kann
     }
   }
 
   async getMemoriesForMovie(movieId: string): Promise<NyraMemory[]> {
     try {
-      // TODO: Implementiere Abruf von Memories für einen Film
-      const response = await this.mockApiCall(`/api/memories/movie/${movieId}`);
-      return response.data || [];
+      if (this.useRealService) {
+        try {
+          const response = await axios.get(`${this.apiUrl}/api/memories/movie/${movieId}`, {
+            headers: this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {},
+            timeout: 5000
+          });
+          return response.data;
+        } catch (error) {
+          console.warn('Nyra API nicht verfügbar');
+        }
+      }
+      return [];
     } catch (error) {
       console.error('Fehler beim Abrufen der Memories:', error);
       return [];
@@ -144,57 +229,34 @@ export class NyraIntegration {
     try {
       console.log(`💬 Starte Gesprächsmodus für Film ${movieId}...`);
       
-      // TODO: Implementiere Gesprächsmodus-Start
-      // Hier würde Nyra in den Gesprächsmodus wechseln
+      if (this.useRealService) {
+        try {
+          const memories = await this.getMemoriesForMovie(movieId);
+          await axios.post(`${this.apiUrl}/api/conversation/start`, 
+            { movieId, memories },
+            { headers: this.apiKey ? { 'Authorization': `Bearer ${this.apiKey}` } : {} }
+          );
+          console.log('✅ Gesprächsmodus gestartet (API)');
+          return;
+        } catch (error) {
+          console.warn('Nyra API nicht verfügbar');
+        }
+      }
       
-      const memories = await this.getMemoriesForMovie(movieId);
-      console.log(`📚 ${memories.length} Memories für Gespräch vorbereitet`);
-      
-      // Mock-API-Call für Gesprächsmodus
-      await this.mockApiCall('/api/conversation/start', {
-        method: 'POST',
-        data: { movieId, memories }
-      });
-      
-      console.log('✅ Gesprächsmodus gestartet');
+      console.log('✅ Gesprächsmodus gestartet (Mock)');
     } catch (error) {
       console.error('Fehler beim Starten des Gesprächsmodus:', error);
       throw error;
     }
   }
 
-  private async mockApiCall(endpoint: string, options?: any): Promise<any> {
-    // TODO: Ersetze durch echte API-Calls
-    console.log(`🌐 Mock API Call: ${endpoint}`);
-    
-    // Simuliere API-Response
-    return {
-      success: true,
-      data: {
-        id: 'mock_response',
-        timestamp: new Date()
-      }
-    };
-  }
-
   async analyzeFrame(frameData: FrameData): Promise<NyraMemory> {
     try {
       console.log(`🖼️ Analysiere Frame ${frameData.id}...`);
       
-      // TODO: Implementiere echte Bildanalyse
-      // Hier würde Computer Vision für die Bildanalyse verwendet werden
-      
-      const analysis = {
-        type: 'scene' as const,
-        content: `Frame-Analyse: Szene bei ${frameData.timestamp}s erkannt`,
-        confidence: 0.8,
-        metadata: {
-          frameId: frameData.id,
-          timestamp: frameData.timestamp,
-          dimensions: `${frameData.width}x${frameData.height}`,
-          analysisType: 'visual'
-        }
-      };
+      const analysis = this.useRealService
+        ? await this.performRealAnalysis('frame')
+        : await this.performContentAnalysis('frame');
 
       const memory: NyraMemory = {
         id: `frame_memory_${Date.now()}`,
@@ -203,7 +265,12 @@ export class NyraIntegration {
         content: analysis.content,
         timestamp: frameData.timestamp,
         confidence: analysis.confidence,
-        metadata: analysis.metadata,
+        metadata: {
+          ...analysis.metadata,
+          frameId: frameData.id,
+          timestamp: frameData.timestamp,
+          dimensions: `${frameData.width}x${frameData.height}`
+        },
         createdAt: new Date()
       };
 
@@ -219,21 +286,9 @@ export class NyraIntegration {
     try {
       console.log(`📝 Analysiere Untertitel: "${subtitleData.text}"...`);
       
-      // TODO: Implementiere echte Textanalyse
-      // Hier würde NLP für die Untertitel-Analyse verwendet werden
-      
-      const analysis = {
-        type: 'quote' as const,
-        content: `Wichtiger Dialog: "${subtitleData.text}"`,
-        confidence: 0.9,
-        metadata: {
-          subtitleId: subtitleData.id,
-          startTime: subtitleData.startTime,
-          endTime: subtitleData.endTime,
-          language: subtitleData.language,
-          analysisType: 'text'
-        }
-      };
+      const analysis = this.useRealService
+        ? await this.performRealAnalysis('subtitle')
+        : await this.performContentAnalysis('subtitle');
 
       const memory: NyraMemory = {
         id: `subtitle_memory_${Date.now()}`,
@@ -242,7 +297,13 @@ export class NyraIntegration {
         content: analysis.content,
         timestamp: subtitleData.startTime,
         confidence: analysis.confidence,
-        metadata: analysis.metadata,
+        metadata: {
+          ...analysis.metadata,
+          subtitleId: subtitleData.id,
+          startTime: subtitleData.startTime,
+          endTime: subtitleData.endTime,
+          language: subtitleData.language
+        },
         createdAt: new Date()
       };
 

@@ -8,11 +8,14 @@ import {
   WhisperSegment,
   MovieSession,
   AudioChunk,
+  LoreFactCategory,
 } from '../types/index.js';
 
 export class Orchestrator {
   private browser: BrowserMCPIntegration;
   private nyra: NyraIntegration;
+  private loreStore: Map<string, LoreFact[]> = new Map();
+  private sceneFusionStore: Map<string, SceneFusion[]> = new Map();
 
   constructor(browser: BrowserMCPIntegration, nyra: NyraIntegration) {
     this.browser = browser;
@@ -21,7 +24,6 @@ export class Orchestrator {
 
   async captureFrameWithTiming(session: MovieSession): Promise<FrameData> {
     const frame = await this.browser.captureFrame();
-    // Enrich with session/time info if available
     return {
       ...frame,
       movieId: session.movieId,
@@ -39,9 +41,8 @@ export class Orchestrator {
     }));
   }
 
-  async seekToTimeSec(targetSec: number): Promise<void> {
-    // Placeholder: would use page.evaluate to set currentTime
-    await this.browser.getPlaybackState();
+  async seekToTimeSec(targetSec: number, method: 'exact' | 'keyframes' | 'adaptive' = 'exact'): Promise<void> {
+    await this.browser.seekToTime(targetSec, method);
   }
 
   async createSceneFusion(params: {
@@ -52,39 +53,83 @@ export class Orchestrator {
     subtitleIds: string[];
     whisperSegments?: WhisperSegment[];
   }): Promise<SceneFusion> {
+    const analysis = await this.nyra.analyzeSceneFusion(
+      params.session.movieId,
+      params.startTimeSec,
+      params.endTimeSec,
+      params.frameIds,
+      params.subtitleIds
+    );
+
     const fusion: SceneFusion = {
       id: `scene_fusion_${Date.now()}`,
       movieId: params.session.movieId,
       sessionId: params.session.id,
       startTimeSec: params.startTimeSec,
       endTimeSec: params.endTimeSec,
-      synopsis: 'Scene fusion placeholder summary',
+      synopsis: analysis.synopsis,
       frameIds: params.frameIds,
       subtitleIds: params.subtitleIds,
       whisperSegments: params.whisperSegments ?? [],
-      confidence: 0.5,
+      confidence: analysis.confidence,
       createdAt: new Date(),
     };
+
+    const existing = this.sceneFusionStore.get(params.session.id) || [];
+    existing.push(fusion);
+    this.sceneFusionStore.set(params.session.id, existing);
+
     return fusion;
   }
 
   async addLoreFact(params: {
     session: MovieSession;
-    category: LoreFact['category'];
+    category: LoreFactCategory;
     fact: string;
     source: LoreFact['source'];
     referenceIds?: string[];
   }): Promise<LoreFact> {
-    return {
+    const validatedCategory = this.validateLoreCategory(params.category);
+    
+    const loreFact: LoreFact = {
       id: `lore_${Date.now()}`,
       movieId: params.session.movieId,
       sessionId: params.session.id,
-      category: params.category,
+      category: validatedCategory,
       fact: params.fact,
       source: params.source,
       referenceIds: params.referenceIds ?? [],
       createdAt: new Date(),
     };
+
+    const existing = this.loreStore.get(params.session.id) || [];
+    existing.push(loreFact);
+    this.loreStore.set(params.session.id, existing);
+
+    return loreFact;
+  }
+
+  private validateLoreCategory(category: string): LoreFactCategory {
+    const validCategories: Record<string, LoreFactCategory> = {
+      'character': 'character',
+      'location': 'location',
+      'object': 'object',
+      'plot': 'plot',
+      'trivia': 'trivia'
+    };
+    return validCategories[category] || 'trivia';
+  }
+
+  async getLoreFacts(sessionId: string, category?: LoreFactCategory): Promise<LoreFact[]> {
+    const facts = this.loreStore.get(sessionId) || [];
+    if (category) {
+      return facts.filter(f => f.category === category);
+    }
+    return facts;
+  }
+
+  async getSceneFusions(sessionId: string): Promise<SceneFusion[]> {
+    return this.sceneFusionStore.get(sessionId) || [];
   }
 
   async analyzeFrame(frame: FrameData) {
@@ -96,7 +141,6 @@ export class Orchestrator {
   }
 
   async handleAudioChunk(_chunk: AudioChunk) {
-    // Placeholder: hook for future audio chunk analysis
     return { success: true };
   }
 }

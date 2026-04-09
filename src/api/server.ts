@@ -10,6 +10,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { BrowserMCPIntegration } from '../browser/integration.js';
 import { NyraIntegration } from '../nyra/integration.js';
+import { Orchestrator } from '../orchestrator/index.js';
 import { APIResponse, StreamResponse, MovieSession, BrowserMCPConfig } from '../types/index.js';
 
 export class APIServer {
@@ -18,6 +19,7 @@ export class APIServer {
   private io: SocketIOServer;
   private browserIntegration: BrowserMCPIntegration;
   private nyraIntegration: NyraIntegration;
+  private orchestrator: Orchestrator;
   private activeSessions: Map<string, MovieSession> = new Map();
 
   constructor() {
@@ -36,6 +38,7 @@ export class APIServer {
     };
     this.browserIntegration = new BrowserMCPIntegration(config);
     this.nyraIntegration = new NyraIntegration();
+    this.orchestrator = new Orchestrator(this.browserIntegration, this.nyraIntegration);
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -305,6 +308,187 @@ export class APIServer {
         success: true,
         data: session
       });
+    });
+
+    // Seek to Time
+    this.app.post('/api/sessions/:sessionId/seek', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const { targetTimeSec, method = 'exact' } = req.body;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        await this.browserIntegration.seekToTime(targetTimeSec, method);
+        
+        const playbackState = await this.browserIntegration.getPlaybackState();
+        
+        this.io.emit('seek_completed', {
+          sessionId,
+          targetTime: targetTimeSec,
+          actualTime: playbackState.currentTime
+        });
+
+        return res.json({
+          success: true,
+          data: {
+            targetTimeSec,
+            actualTimeSec: playbackState.currentTime,
+            method
+          }
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // Scene Fusion
+    this.app.post('/api/sessions/:sessionId/scene-fusions', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const { startTimeSec, endTimeSec, frameIds = [], subtitleIds = [] } = req.body;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const fusion = await this.orchestrator.createSceneFusion({
+          session,
+          startTimeSec,
+          endTimeSec,
+          frameIds,
+          subtitleIds
+        });
+
+        if (!session.data.sceneFusions) {
+          session.data.sceneFusions = [];
+        }
+        session.data.sceneFusions.push(fusion);
+
+        this.io.emit('scene_fusion_created', {
+          sessionId,
+          fusion
+        });
+
+        return res.json({
+          success: true,
+          data: fusion
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    this.app.get('/api/sessions/:sessionId/scene-fusions', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const session = this.activeSessions.get(sessionId);
+        
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const fusions = await this.orchestrator.getSceneFusions(sessionId);
+
+        return res.json({
+          success: true,
+          data: fusions
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // Lore Facts
+    this.app.post('/api/sessions/:sessionId/lore', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const { category, fact, source, referenceIds = [] } = req.body;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const loreFact = await this.orchestrator.addLoreFact({
+          session,
+          category,
+          fact,
+          source,
+          referenceIds
+        });
+
+        if (!session.data.loreFacts) {
+          session.data.loreFacts = [];
+        }
+        session.data.loreFacts.push(loreFact);
+
+        this.io.emit('lore_fact_added', {
+          sessionId,
+          loreFact
+        });
+
+        return res.json({
+          success: true,
+          data: loreFact
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    this.app.get('/api/sessions/:sessionId/lore', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        const { category } = req.query;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const facts = await this.orchestrator.getLoreFacts(sessionId, category as any);
+
+        return res.json({
+          success: true,
+          data: facts
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
     });
   }
 

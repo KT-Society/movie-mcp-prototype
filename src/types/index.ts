@@ -200,3 +200,62 @@ export interface WebPlayerConfig {
   };
   customScripts?: string[];
 }
+
+// MCP Tool definitions for streamable HTTP
+export interface MCPToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: 'object';
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
+export interface SeekParams {
+  sessionId: string;
+  targetTimeSec: number;
+  method?: 'exact' | 'keyframes' | 'adaptive';
+}
+
+export interface SceneFusionParams {
+  sessionId: string;
+  startTimeSec: number;
+  endTimeSec: number;
+  autoGenerate?: boolean;
+}
+
+export interface LoreFactParams {
+  sessionId: string;
+  category: LoreFactCategory;
+  fact: string;
+  source: LoreFact['source'];
+  referenceIds?: string[];
+}
+
+// Analysis Service Types
+export interface FrameAnalysisResult {
+  type: 'scene' | 'character' | 'emotion' | 'object' | 'text';
+  content: string;
+  confidence: number;
+  labels: string[];
+  metadata: Record<string, any>;
+}
+
+export interface SubtitleAnalysisResult {
+  type: 'quote' | 'dialogue' | 'narration' | 'action';
+  content: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  keywords: string[];
+  speakers?: string[];
+  metadata: Record<string, any>;
+}
+
+export interface AudioAnalysisResult {
+  type: 'emotion' | 'speech' | 'music' | 'sfx';
+  content: string;
+  emotions: string[];
+  volume: 'low' | 'medium' | 'high';
+  speechDetected: boolean;
+  metadata: Record<string, any>;
+}

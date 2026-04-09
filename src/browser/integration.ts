@@ -386,6 +386,59 @@ export class BrowserMCPIntegration {
     }
   }
 
+  async seekToTime(targetTimeSec: number, method: 'exact' | 'keyframes' | 'adaptive' = 'exact'): Promise<void> {
+    if (!this.page) {
+      throw new Error('Browser nicht initialisiert');
+    }
+
+    try {
+      console.log(`⏩ Springe zu Zeit ${targetTimeSec}s (Methode: ${method})...`);
+      
+      await this.page.evaluate((time, seekMethod) => {
+        const video = document.querySelector('video') as HTMLVideoElement;
+        if (!video) {
+          throw new Error('Kein Video-Element gefunden');
+        }
+
+        switch (seekMethod) {
+          case 'exact':
+            video.currentTime = time;
+            break;
+          case 'keyframes':
+            if (video.getVideoPlaybackQuality) {
+              const quality = video.getVideoPlaybackQuality();
+              if (quality.totalVideoFrames > 0) {
+                const keyframeInterval = Math.floor(video.duration / 60);
+                video.currentTime = Math.floor(time / keyframeInterval) * keyframeInterval;
+              } else {
+                video.currentTime = time;
+              }
+            } else {
+              video.currentTime = time;
+            }
+            break;
+          case 'adaptive':
+            if (video.buffered.length > 0) {
+              const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+              if (time > bufferedEnd) {
+                video.currentTime = bufferedEnd;
+              } else {
+                video.currentTime = time;
+              }
+            } else {
+              video.currentTime = time;
+            }
+            break;
+        }
+      }, targetTimeSec, method);
+
+      console.log(`✅ Zu Zeit ${targetTimeSec}s gesprungen!`);
+    } catch (error) {
+      console.error('❌ Fehler beim Springen zur Zeit:', error);
+      throw error;
+    }
+  }
+
   async cleanup(): Promise<void> {
     try {
       if (this.browser) {

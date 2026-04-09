@@ -1,6 +1,6 @@
 /**
  * MCP-Server für Movie-Prototype
- * Hauptserver für die Kommunikation mit Nyra und Browser MCP
+ * Stdio Transport mit Express HTTP Fallback
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -9,14 +9,16 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { MovieData, FrameData, SubtitleData, AudioData, PlaybackState, NyraMemory, BrowserMCPConfig } from '../types/index.js';
+import { MovieData, FrameData, SubtitleData, AudioData, PlaybackState, NyraMemory, BrowserMCPConfig, SceneFusion, LoreFact } from '../types/index.js';
 import { BrowserMCPIntegration } from '../browser/integration.js';
 import { NyraIntegration } from '../nyra/integration.js';
+import { Orchestrator } from '../orchestrator/index.js';
 
 export class MovieMCPServer {
   private server: Server;
   private browserIntegration: BrowserMCPIntegration;
   private nyraIntegration: NyraIntegration;
+  private orchestrator: Orchestrator;
   private activeSessions: Map<string, any> = new Map();
 
   constructor() {
@@ -38,6 +40,7 @@ export class MovieMCPServer {
     };
     this.browserIntegration = new BrowserMCPIntegration(config);
     this.nyraIntegration = new NyraIntegration();
+    this.orchestrator = new Orchestrator(this.browserIntegration, this.nyraIntegration);
     
     this.setupHandlers();
   }
@@ -108,6 +111,75 @@ export class MovieMCPServer {
             }
           },
           {
+            name: 'seek_to_time',
+            description: 'Springt zu einer bestimmten Zeitposition im Video',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                targetTimeSec: { type: 'number', description: 'Zielzeit in Sekunden' },
+                method: { type: 'string', enum: ['exact', 'keyframes', 'adaptive'], description: 'Seek-Methode' }
+              },
+              required: ['sessionId', 'targetTimeSec']
+            }
+          },
+          {
+            name: 'create_scene_fusion',
+            description: 'Erstellt eine Szenen-Fusion aus Frames und Untertiteln',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                startTimeSec: { type: 'number' },
+                endTimeSec: { type: 'number' },
+                frameIds: { type: 'array', items: { type: 'string' } },
+                subtitleIds: { type: 'array', items: { type: 'string' } },
+                autoGenerate: { type: 'boolean', description: 'Automatisch Synopsis generieren' }
+              },
+              required: ['sessionId', 'startTimeSec', 'endTimeSec']
+            }
+          },
+          {
+            name: 'add_lore_fact',
+            description: 'Fügt einen Lore-Fakt zur Wissensbasis hinzu',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                category: { type: 'string', enum: ['character', 'location', 'object', 'plot', 'trivia'] },
+                fact: { type: 'string' },
+                source: { type: 'string', enum: ['frame', 'subtitle', 'audio', 'scene-fusion', 'manual'] },
+                referenceIds: { type: 'array', items: { type: 'string' } }
+              },
+              required: ['sessionId', 'category', 'fact', 'source']
+            }
+          },
+          {
+            name: 'get_lore_facts',
+            description: 'Holt alle Lore-Fakten für eine Session oder einen Film',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                movieId: { type: 'string' },
+                category: { type: 'string', enum: ['character', 'location', 'object', 'plot', 'trivia'] }
+              },
+              required: ['sessionId']
+            }
+          },
+          {
+            name: 'get_scene_fusions',
+            description: 'Holt alle Szenen-Fusionen für eine Session',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                movieId: { type: 'string' }
+              },
+              required: ['sessionId']
+            }
+          },
+          {
             name: 'analyze_content',
             description: 'Analysiert extrahierte Inhalte für Nyra',
             inputSchema: {
@@ -139,6 +211,16 @@ export class MovieMCPServer {
             return await this.captureFrame(args);
           case 'get_subtitles':
             return await this.getSubtitles(args);
+          case 'seek_to_time':
+            return await this.seekToTime(args);
+          case 'create_scene_fusion':
+            return await this.createSceneFusion(args);
+          case 'add_lore_fact':
+            return await this.addLoreFact(args);
+          case 'get_lore_facts':
+            return await this.getLoreFacts(args);
+          case 'get_scene_fusions':
+            return await this.getSceneFusions(args);
           case 'analyze_content':
             return await this.analyzeContent(args);
           default:
@@ -281,14 +363,139 @@ export class MovieMCPServer {
       throw new Error(`Session ${sessionId} nicht gefunden`);
     }
 
-    // TODO: Implementiere Content-Analyse für Nyra
     const analysis = await this.nyraIntegration.analyzeContent(sessionId, contentType);
     
     return {
       content: [
         {
           type: 'text',
-          text: `Content-Analyse abgeschlossen: ${analysis.type}`
+          text: `Content-Analyse abgeschlossen: ${JSON.stringify(analysis, null, 2)}`
+        }
+      ]
+    };
+  }
+
+  private async seekToTime(args: any): Promise<any> {
+    const { sessionId, targetTimeSec, method = 'exact' } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    await this.browserIntegration.seekToTime(targetTimeSec, method);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Zu Zeit ${targetTimeSec}s gesprungen (Methode: ${method})`
+        }
+      ]
+    };
+  }
+
+  private async createSceneFusion(args: any): Promise<any> {
+    const { sessionId, startTimeSec, endTimeSec, frameIds = [], subtitleIds = [], autoGenerate = true } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    const fusion = await this.orchestrator.createSceneFusion({
+      session,
+      startTimeSec,
+      endTimeSec,
+      frameIds,
+      subtitleIds
+    });
+
+    if (!session.data.sceneFusions) {
+      session.data.sceneFusions = [];
+    }
+    session.data.sceneFusions.push(fusion);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Szenen-Fusion erstellt: ${fusion.id} (${startTimeSec}s - ${endTimeSec}s)`
+        }
+      ]
+    };
+  }
+
+  private async addLoreFact(args: any): Promise<any> {
+    const { sessionId, category, fact, source, referenceIds = [] } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    const loreFact = await this.orchestrator.addLoreFact({
+      session,
+      category,
+      fact,
+      source,
+      referenceIds
+    });
+
+    if (!session.data.loreFacts) {
+      session.data.loreFacts = [];
+    }
+    session.data.loreFacts.push(loreFact);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Lore-Fakt hinzugefügt: ${loreFact.id} (${category})`
+        }
+      ]
+    };
+  }
+
+  private async getLoreFacts(args: any): Promise<any> {
+    const { sessionId, movieId, category } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    let facts = session.data.loreFacts || [];
+    
+    if (category) {
+      facts = facts.filter((f: { category: string }) => f.category === category);
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `${facts.length} Lore-Fakten gefunden:\n${JSON.stringify(facts, null, 2)}`
+        }
+      ]
+    };
+  }
+
+  private async getSceneFusions(args: any): Promise<any> {
+    const { sessionId, movieId } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    const fusions = session.data.sceneFusions || [];
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `${fusions.length} Szenen-Fusionen gefunden:\n${JSON.stringify(fusions, null, 2)}`
         }
       ]
     };
@@ -297,6 +504,6 @@ export class MovieMCPServer {
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.log('Movie MCP Server gestartet! 🎬✨');
+    console.log('🎬 Movie MCP Server gestartet! (Stdio)');
   }
 }
