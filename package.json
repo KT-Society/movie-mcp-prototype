@@ -1,6 +1,6 @@
 {
   "name": "movie-mcp-prototype",
-  "version": "0.0.1",
+  "version": "1.2.0",
   "description": "MCP-Server-Prototyp v0.0.1 für gemeinsames Filmerlebnis mit Nyra KI-Partnerin - Grundstruktur mit Mock-Implementierungen",
   "main": "dist/index.js",
   "type": "module",

@@ -294,3 +294,36 @@ export interface AudioChunk {
   dataBase64: string;
   capturedAtWallTimeMs?: number;
 }
+
+// SmolVLM2 Types
+export interface VLMConfig {
+  modelName: string;
+  device: 'cpu' | 'webgpu' | 'cuda';
+  dtype: 'q4' | 'q8' | 'fp16';
+  maxTokens: number;
+  temperature: number;
+}
+
+export interface ImageAnalysisResult {
+  description: string;
+  tags: string[];
+  entities: {
+    type: string;
+    label: string;
+    confidence: number;
+  }[];
+  textDetected: string[];
+  scene: string;
+  mood?: string;
+  confidence: number;
+  metadata: Record<string, any>;
+}
+
+export interface FrameContext {
+  frameId: string;
+  timestamp: number;
+  analysis: ImageAnalysisResult;
+  keyObjects: string[];
+  textContent: string[];
+  summarization: string;
+}

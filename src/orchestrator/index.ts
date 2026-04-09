@@ -2,6 +2,7 @@ import { BrowserMCPIntegration } from '../browser/integration.js';
 import { NyraIntegration } from '../nyra/integration.js';
 import { ParakeetSTTService } from '../services/parakeetSTT.js';
 import { AudioExtractionService } from '../services/audioExtractor.js';
+import { SmolVLM2Service } from '../services/smolVLM2.js';
 import {
   FrameData,
   SubtitleData,
@@ -12,21 +13,26 @@ import {
   AudioChunk,
   LoreFactCategory,
   TranscriptionResult,
+  ImageAnalysisResult,
+  FrameContext,
 } from '../types/index.js';
 
 export class Orchestrator {
   private browser: BrowserMCPIntegration;
   private nyra: NyraIntegration;
   private sttService: ParakeetSTTService;
+  private vlmService: SmolVLM2Service;
   private audioExtractor: AudioExtractionService;
   private loreStore: Map<string, LoreFact[]> = new Map();
   private sceneFusionStore: Map<string, SceneFusion[]> = new Map();
   private transcriptionStore: Map<string, TranscriptionResult[]> = new Map();
+  private frameContextStore: Map<string, FrameContext[]> = new Map();
 
   constructor(browser: BrowserMCPIntegration, nyra: NyraIntegration) {
     this.browser = browser;
     this.nyra = nyra;
     this.sttService = new ParakeetSTTService();
+    this.vlmService = new SmolVLM2Service();
     this.audioExtractor = new AudioExtractionService();
   }
 
@@ -142,6 +148,37 @@ export class Orchestrator {
 
   async analyzeFrame(frame: FrameData) {
     return this.nyra.analyzeFrame(frame);
+  }
+
+  async analyzeFrameWithVLM(frame: FrameData): Promise<ImageAnalysisResult> {
+    console.log(`📸 Analysiere Frame mit SmolVLM2: ${frame.id}`);
+    const result = await this.vlmService.analyzeFrame(frame);
+    
+    const existing = this.frameContextStore.get(frame.movieId) || [];
+    const context: FrameContext = {
+      frameId: frame.id,
+      timestamp: frame.videoTimeSec ?? frame.timestamp / 1000,
+      analysis: result,
+      keyObjects: result.entities.map(e => e.label).slice(0, 5),
+      textContent: result.textDetected,
+      summarization: `Frame ${frame.id}: ${result.description.substring(0, 100)}`
+    };
+    existing.push(context);
+    this.frameContextStore.set(frame.movieId, existing);
+    
+    return result;
+  }
+
+  async createFrameContext(frame: FrameData): Promise<FrameContext> {
+    return this.vlmService.createFrameContext(frame);
+  }
+
+  async batchAnalyzeFrames(frames: FrameData[]): Promise<FrameContext[]> {
+    return this.vlmService.batchAnalyzeFrames(frames);
+  }
+
+  async getFrameContexts(movieId: string): Promise<FrameContext[]> {
+    return this.frameContextStore.get(movieId) || [];
   }
 
   async analyzeSubtitle(subtitle: SubtitleData) {
