@@ -40,7 +40,6 @@
     "@ai-sdk/openai": "^0.0.14",
     "@ai-sdk/anthropic": "^0.0.10",
     "@ai-sdk/google": "^0.0.10",
-    "@xenova/transformers": "^2.17.2",
     "axios": "^1.6.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -54,8 +53,7 @@
     "socket.io": "^4.7.5",
     "subtitle": "^0.0.1",
     "tesseract.js": "^5.0.4",
-    "ws": "^8.14.2",
-    "node-audio-extract": "^1.0.0"
+    "ws": "^8.14.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
