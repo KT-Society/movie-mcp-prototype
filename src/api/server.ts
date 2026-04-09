@@ -582,6 +582,112 @@ export class APIServer {
         });
       }
     });
+
+    // VLM - Analyze current frame with SmolVLM2
+    this.app.post('/api/sessions/:sessionId/analyze-frame', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const frameData = await this.browserIntegration.captureFrame();
+        session.data.frames.push(frameData);
+
+        const analysis = await this.orchestrator.analyzeFrameWithVLM(frameData);
+
+        this.io.emit('frame_analyzed', {
+          sessionId,
+          frameId: frameData.id,
+          analysis
+        });
+
+        return res.json({
+          success: true,
+          data: {
+            frame: frameData,
+            analysis
+          }
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // VLM - Get frame contexts
+    this.app.get('/api/sessions/:sessionId/frame-contexts', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const contexts = await this.orchestrator.getFrameContexts(session.movieId);
+
+        return res.json({
+          success: true,
+          data: contexts
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
+    // VLM - Batch analyze frames
+    this.app.post('/api/sessions/:sessionId/batch-analyze', async (req, res) => {
+      try {
+        const { sessionId } = req.params;
+        
+        const session = this.activeSessions.get(sessionId);
+        if (!session) {
+          return res.status(404).json({
+            success: false,
+            error: 'Session nicht gefunden'
+          });
+        }
+
+        const frames = session.data.frames;
+        if (frames.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Keine Frames für Batch-Analyse verfügbar'
+          });
+        }
+
+        const contexts = await this.orchestrator.batchAnalyzeFrames(frames);
+
+        this.io.emit('batch_analysis_completed', {
+          sessionId,
+          contextsCount: contexts.length
+        });
+
+        return res.json({
+          success: true,
+          data: contexts
+        });
+      } catch (error) {
+        return res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
   }
 
   private setupWebSocket(): void {
