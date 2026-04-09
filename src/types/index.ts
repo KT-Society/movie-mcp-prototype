@@ -327,3 +327,46 @@ export interface FrameContext {
   textContent: string[];
   summarization: string;
 }
+
+// Habitat Bridge Types
+export interface HabitatConfig {
+  apiUrl: string;
+  apiKey?: string;
+  modelName: string;
+  temperature: number;
+  maxTokens: number;
+}
+
+export interface LLMRequest {
+  prompt: string;
+  context: {
+    frames?: FrameContext[];
+    transcriptions?: TranscriptionResult[];
+    sceneFusions?: SceneFusion[];
+    loreFacts?: LoreFact[];
+  };
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+  };
+}
+
+export interface LLMResponse {
+  text: string;
+  toolCalls?: {
+    name: string;
+    arguments: Record<string, any>;
+  }[];
+  memory?: {
+    type: string;
+    content: string;
+    importance: number;
+  };
+}
+
+export interface SessionContext {
+  frames: FrameContext[];
+  transcriptions: TranscriptionResult[];
+  sceneFusions: SceneFusion[];
+  loreFacts: LoreFact[];
+}
