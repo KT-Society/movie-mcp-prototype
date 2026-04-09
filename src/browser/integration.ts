@@ -90,14 +90,14 @@ export class BrowserMCPIntegration {
       console.log('▶️ Suche nach AniWorld Webplayer...');
       
       // Warte auf das Laden der Seite
-      await this.page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Scroll nur ein kleines Stück runter zum Player
       console.log('📜 Scrolle runter zum Player...');
       await this.page.evaluate(() => {
         window.scrollTo(0, 300); // Kleines Stück runter zum Player-Bereich
       });
-      await this.page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Klicke auf den iframe oder fakePlayer in der Mitte
       console.log('🎬 Klicke auf den Player-Bereich...');
@@ -117,7 +117,7 @@ export class BrowserMCPIntegration {
             console.log(`✅ Player-Bereich gefunden: ${selector}`);
             await player.click();
             console.log('▶️ Video gestartet!');
-            await this.page.waitForTimeout(3000);
+            await new Promise(resolve => setTimeout(resolve, 3000));
             return;
           }
         } catch (error) {
@@ -129,7 +129,7 @@ export class BrowserMCPIntegration {
       console.log('🎯 Klicke in die Mitte des Player-Bereichs...');
       await this.page.click('body', { offset: { x: 500, y: 300 } });
       console.log('▶️ Video gestartet!');
-      await this.page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (error) {
       console.log('⚠️ Fehler beim Starten des Videos:', error);
     }
@@ -144,7 +144,7 @@ export class BrowserMCPIntegration {
       console.log('🍪 Suche nach Cookie-Bannern...');
       
       // Warte kurz auf das Laden der Seite
-      await this.page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Verschiedene Cookie-Banner-Buttons suchen
       const cookieSelectors = [
@@ -169,7 +169,7 @@ export class BrowserMCPIntegration {
             console.log(`✅ Cookie-Button gefunden: ${selector}`);
             await button.click();
             console.log('✅ Cookie-Banner weggeklickt!');
-            await this.page.waitForTimeout(1000);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             return;
           }
         } catch (error) {
@@ -193,7 +193,7 @@ export class BrowserMCPIntegration {
             console.log(`✅ Cookie-Button per Text gefunden: ${text}`);
             await button.click();
             console.log('✅ Cookie-Banner weggeklickt!');
-            await this.page.waitForTimeout(1000);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             return;
           }
         } catch (error) {
@@ -218,7 +218,7 @@ export class BrowserMCPIntegration {
       console.log('📸 Erfasse Frame...');
       
       // Warte auf das Laden der Seite
-      await this.page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Versuche verschiedene Video-Selektoren
       let videoElement = null;
