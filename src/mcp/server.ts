@@ -13,12 +13,14 @@ import { MovieData, FrameData, SubtitleData, AudioData, PlaybackState, NyraMemor
 import { BrowserMCPIntegration } from '../browser/integration.js';
 import { NyraIntegration } from '../nyra/integration.js';
 import { Orchestrator } from '../orchestrator/index.js';
+import { HabitatLLMBridge } from '../bridge/habitatBridge.js';
 
 export class MovieMCPServer {
   private server: Server;
   private browserIntegration: BrowserMCPIntegration;
   private nyraIntegration: NyraIntegration;
   private orchestrator: Orchestrator;
+  private habitatBridge: HabitatLLMBridge;
   private activeSessions: Map<string, any> = new Map();
 
   constructor() {
@@ -41,6 +43,7 @@ export class MovieMCPServer {
     this.browserIntegration = new BrowserMCPIntegration(config);
     this.nyraIntegration = new NyraIntegration();
     this.orchestrator = new Orchestrator(this.browserIntegration, this.nyraIntegration);
+    this.habitatBridge = new HabitatLLMBridge(this.browserIntegration, this.nyraIntegration);
     
     this.setupHandlers();
   }
@@ -190,6 +193,29 @@ export class MovieMCPServer {
               },
               required: ['sessionId', 'contentType']
             }
+          },
+          {
+            name: 'chat_with_llm',
+            description: 'Frage den LLM basierend auf dem Film-Kontext',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' },
+                question: { type: 'string', description: 'Frage zum Film' }
+              },
+              required: ['sessionId', 'question']
+            }
+          },
+          {
+            name: 'get_session_context',
+            description: 'Holt den gesamten Session-Kontext für den LLM',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                sessionId: { type: 'string' }
+              },
+              required: ['sessionId']
+            }
           }
         ]
       };
@@ -223,6 +249,10 @@ export class MovieMCPServer {
             return await this.getSceneFusions(args);
           case 'analyze_content':
             return await this.analyzeContent(args);
+          case 'chat_with_llm':
+            return await this.chatWithLLM(args);
+          case 'get_session_context':
+            return await this.getSessionContext(args);
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -496,6 +526,57 @@ export class MovieMCPServer {
         {
           type: 'text',
           text: `${fusions.length} Szenen-Fusionen gefunden:\n${JSON.stringify(fusions, null, 2)}`
+        }
+      ]
+    };
+  }
+
+  private async chatWithLLM(args: any): Promise<any> {
+    const { sessionId, question } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    try {
+      const response = await this.habitatBridge.processQuery(sessionId, question);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: response.text
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Fehler bei LLM-Anfrage: ${error instanceof Error ? error.message : 'Unknown error'}`
+          }
+        ]
+      };
+    }
+  }
+
+  private async getSessionContext(args: any): Promise<any> {
+    const { sessionId } = args;
+    
+    const session = this.activeSessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} nicht gefunden`);
+    }
+
+    const context = this.habitatBridge.getSessionContext(sessionId);
+    
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(context, null, 2)
         }
       ]
     };
