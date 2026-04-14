@@ -329,7 +329,7 @@ export interface FrameContext {
 }
 
 // Habitat Bridge Types
-export interface Habitat Config {
+export interface HabitatConfig {
   apiUrl: string;
   apiKey?: string;
   modelName: string;

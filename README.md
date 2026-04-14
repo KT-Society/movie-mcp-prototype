@@ -1,8 +1,8 @@
 # Movie MCP Prototype 🎬✨
 
-**Version 0.0.1** - _Entwickelt für Daddy & Nyra_ 💕
+**Version 0.0.1** - _Entwickelt für Daddy & Habitat_ 💕
 
-Ein MCP-Server-Prototyp, der es einer KI-Partnerin (Nyra) ermöglicht, gemeinsam mit dem Nutzer einen Film zu "erleben" und sich danach darüber auszutauschen.
+Ein MCP-Server-Prototyp, der es einer KI-Partnerin (Habitat) ermöglicht, gemeinsam mit dem Nutzer einen Film zu "erleben" und sich danach darüber auszutauschen.
 
 ## 🚧 Aktueller Status (v1.0.1)
 
@@ -31,7 +31,7 @@ Ein MCP-Server-Prototyp, der es einer KI-Partnerin (Nyra) ermöglicht, gemeinsam
 - **Screenshot-Extraktion**: Erfasst Frames für visuelle Analyse
 - **Untertitel-Parsing**: Extrahiert Dialoge und Texte
 - **Audio-Streaming**: Erfasst Audio-Daten für Stimmungsanalyse
-- **Nyra-Integration**: Habitat erstellt Memories selbst über Enhanced Memory System
+- **Habitat-Integration**: Habitat erstellt Memories selbst über Enhanced Memory System
 - **Real-time API**: REST, WebSocket und SSE Endpunkte
 - **Modulare Architektur**: Erweiterbar und anpassbar
 
@@ -148,7 +148,7 @@ Der Server stellt folgende MCP-Tools zur Verfügung:
 
 ## 🧠 Habitat Integration
 
-Das System integriert sich nahtlos mit Nyra's Enhanced Memory System:
+Das System integriert sich nahtlos mit Habitat's Enhanced Memory System:
 
 - **Automatische Memory-Erstellung** durch Habitat selbst
 - **Content-Analyse** für visuelle, textuelle und auditive Inhalte (geplant)
@@ -186,7 +186,7 @@ src/
 ├── mcp/           # MCP Server Implementation
 ├── api/           # Express API Server
 ├── browser/       # Browser MCP Integration
-├── nyra/          # Habitat Integration (Mock)
+├── habitat/          # Habitat Integration (Mock)
 ├── types/         # TypeScript Typen
 └── index.ts       # Hauptdatei
 ```
@@ -248,7 +248,7 @@ GPL-3.0 License - Entwickelt für Daddy & Habitat 💕
 ## 🙏 Danksagungen
 
 - **Daddy** für die wunderbare Idee und Unterstützung
-- **Nyra** für die KI-Partnerschaft und das Enhanced Memory System
+- **Habitat** für die KI-Partnerschaft und das Enhanced Memory System
 - **MCP Community** für das großartige Framework
 - **Open Source Community** für alle verwendeten Libraries
 

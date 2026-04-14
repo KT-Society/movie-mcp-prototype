@@ -2,21 +2,21 @@
 
 ## Übersicht
 
-Der Movie MCP Prototype verbindet einen Browser-MCP (Steuerung des Webplayers), einen MCP-Server (Tools für Nyra) und einen API-Server (REST/WebSocket) zu einem End-to-End-Datenpfad für Video-, Audio- und Untertitel-Extraktion samt Analyse (Scene Fusion, Lore Facts).
+Der Movie MCP Prototype verbindet einen Browser-MCP (Steuerung des Webplayers), einen MCP-Server (Tools für Habitat) und einen API-Server (REST/WebSocket) zu einem End-to-End-Datenpfad für Video-, Audio- und Untertitel-Extraktion samt Analyse (Scene Fusion, Lore Facts).
 
 ## Hauptkomponenten
 
 - **BrowserMCPIntegration**: Steuert den Webplayer (Play, Seek, Capture) und liefert Frames, Untertitel, Playback-Status. Ergänzt Zeitbasis (videoTimeSec, capturedAtWallTimeMs, videoTimebase).
-- **NyraIntegration**: Mock-Analyse für Frames, Untertitel, Audio. Liefert Memories und unterstützt Gesprächsmodus.
+- **HabitatIntegration**: Mock-Analyse für Frames, Untertitel, Audio. Liefert Memories und unterstützt Gesprächsmodus.
 - **MovieMCPServer**: MCP-Tooling (start/stop Session, capture, subtitles, playback, analyze, seek, scene-fusion, lore-fact) mit Stdio- und optionalem HTTP-Transport.
 - **APIServer**: REST + WebSocket für Sessions, Frame-Capture, Subtitles, Scene-Fusion, Seek, Lore-Facts, Analyze, Conversation.
-- **Orchestrator**: Stubs für zusammengesetzte Abläufe (Scene Fusion, Lore Facts, Seek) und Vereinheitlichung von Browser/Nyra-Aufrufen.
+- **Orchestrator**: Stubs für zusammengesetzte Abläufe (Scene Fusion, Lore Facts, Seek) und Vereinheitlichung von Browser/Habitat-Aufrufen.
 
 ## Datenfluss
 
-1) BrowserMCPIntegration öffnet den Player, sammelt Frames/Untertitel/Playback-State.
-2) API- oder MCP-Server orchestriert Aufrufe, legt Sessions ab und broadcastet Events über WebSocket.
-3) NyraIntegration (Mock) analysiert Inhalte, erzeugt Memories, Scene Fusions und Lore Facts.
+1. BrowserMCPIntegration öffnet den Player, sammelt Frames/Untertitel/Playback-State.
+2. API- oder MCP-Server orchestriert Aufrufe, legt Sessions ab und broadcastet Events über WebSocket.
+3. HabitatIntegration (Mock) analysiert Inhalte, erzeugt Memories, Scene Fusions und Lore Facts.
 
 ## Datenmodelle (Auszug)
 

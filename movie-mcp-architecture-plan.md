@@ -3,14 +3,16 @@
 This plan is written against the current repo state: MCP server + Express API server + Puppeteer-based capture are already present, but analysis/audio/memory are mostly mock.
 
 Key existing entrypoints:
+
 - [`MovieMCPServer`](src/mcp/server.ts:16) exposing tools like [`start_movie_session`](src/mcp/server.ts:132)
 - [`APIServer`](src/api/server.ts:15) REST + Socket.IO session endpoints
 - [`BrowserMCPIntegration`](src/browser/integration.ts:4) for navigation, cookie handling, screenshot capture, basic playback state
-- Mock analysis scaffold in [`NyraIntegration.analyzeContent()`](src/nyra/integration.ts:18)
+- Mock analysis scaffold in [`HabitatIntegration.analyzeContent()`](src/habitat/integration.ts:18)
 
 ## 1) Target outcome and scope
 
 ### In-scope (initial milestone)
+
 - Local desktop runtime, non-headless Chrome control.
 - Sources: YouTube + generic HTML5 video sites first (no DRM-first work).
 - Capture policy: fixed interval every 3s plus manual trigger.
@@ -18,6 +20,7 @@ Key existing entrypoints:
 - Frames can be sent to Gemini Vision; transcripts and embeddings can be sent to OpenRouter.
 
 ### Out-of-scope (for now)
+
 - DRM platforms (Netflix, Prime, Disney+) reliability.
 - Scene-change detection (add later).
 - Production hardening (auth, rate limiting) beyond basic safety and observability.
@@ -48,6 +51,7 @@ graph TD
 ```
 
 ### Design principles
+
 - Separate capture, analysis, sync, and memory into explicit modules with clear contracts.
 - Always persist raw artifacts locally (frames, audio chunks) before sending derived summaries outward.
 - Treat time as first-class data (video time, wall time, and capture time all stored).
@@ -56,10 +60,12 @@ graph TD
 ## 3) Timebase and synchronization design
 
 ### Canonical clock
+
 - Use `video.currentTime` (seconds) as the ground truth.
 - Every frame and audio chunk is tagged with a `videoTime` snapshot.
 
 ### Frame capture
+
 - Frame event contains:
   - `frameVideoTimeSec`: read immediately before capture.
   - `capturedAtWallTime`: `Date.now()`.
@@ -68,9 +74,11 @@ graph TD
 Existing code already does screenshot capture in [`BrowserMCPIntegration.captureFrame()`](src/browser/integration.ts:212), but currently it sets `timestamp: Date.now()` rather than video time. Plan is to evolve this to store both.
 
 ### Audio chunking and alignment
+
 Audio is the tricky part, so the plan is to design the contract first, then implement capture adapters.
 
 **Contract:**
+
 - Record audio in fixed chunks (example: 10s) to keep Whisper latency bounded.
 - Each chunk stores:
   - `chunkStartVideoTimeSec` and `chunkEndVideoTimeSec`
@@ -79,21 +87,26 @@ Audio is the tricky part, so the plan is to design the contract first, then impl
   - `audioFormat` (wav pcm16 preferred for Whisper)
 
 **Alignment method:**
+
 - At the moment a chunk is finalized, sample `video.currentTime` to tag `chunkEndVideoTimeSec`.
 - Compute `chunkStartVideoTimeSec = chunkEndVideoTimeSec - durationSec`.
 - When Faster-Whisper returns segments relative to the chunk timeline, offset them by `chunkStartVideoTimeSec`.
 
 **Why this works for Phase 2:**
+
 - YouTube and many HTML5 players keep `currentTime` stable even under buffering.
 - Small drift is acceptable initially; later we can add a periodic resync mapping.
 
 ## 4) Capture layer details
 
 ### 4.1 Browser control
+
 Current behavior:
+
 - [`BrowserMCPIntegration.initialize()`](src/browser/integration.ts:23) tries to connect to an existing Chrome at `http://localhost:9222` then falls back to launching.
 
 Plan:
+
 - Formalize a Chrome connection strategy:
   - Prefer connecting to an existing user Chrome with a known debugging port.
   - Else launch a dedicated profile directory to avoid user profile corruption.
@@ -102,6 +115,7 @@ Plan:
   - `GenericHtml5Adapter` for arbitrary sites.
 
 ### 4.2 Capture loop
+
 - A scheduler that runs per active session:
   - Every 3 seconds: capture frame
   - On demand: manual capture
@@ -109,9 +123,11 @@ Plan:
 - Emit WebSocket events for live UI feedback (pattern already exists in [`APIServer`](src/api/server.ts:15)).
 
 ### 4.3 Playback state
+
 Existing method: [`BrowserMCPIntegration.getPlaybackState()`](src/browser/integration.ts:329).
 
 Plan:
+
 - Extend playback state to expose:
   - player readiness
   - buffering state
@@ -120,7 +136,9 @@ Plan:
 ## 5) Analysis layer
 
 ### 5.1 Gemini Vision (frames)
+
 Add a dedicated module that:
+
 - Accepts `FrameData` and returns a structured `VisionSceneDescriptor`.
 - Prompting should request:
   - characters and actions
@@ -130,10 +148,13 @@ Add a dedicated module that:
   - a short neutral description plus a more interpretive description
 
 Integration point:
-- Replace mock analysis in [`NyraIntegration.performContentAnalysis()`](src/nyra/integration.ts:47) with real calls, but keep a feature flag for mock mode.
+
+- Replace mock analysis in [`HabitatIntegration.performContentAnalysis()`](src/habitat/integration.ts:47) with real calls, but keep a feature flag for mock mode.
 
 ### 5.2 Whisper (audio)
+
 Add a local service boundary:
+
 - Node side sends audio chunks to a local whisper worker.
 - Worker returns:
   - transcript segments
@@ -141,17 +162,21 @@ Add a local service boundary:
   - optional language detection
 
 Implementation flexibility:
+
 - Start as a local HTTP service or stdio worker.
 - Keep it container-friendly later, but initial dev should run locally.
 
 ## 6) Context Orchestrator (fusion and reasoning)
 
 ### Input
+
 - Vision descriptor for a frame (or frame window).
 - Whisper segments overlapping the same `videoTime` window.
 
 ### Output
+
 A `SceneFusion` object:
+
 - `sceneId`
 - `timeRange` (start/end video time)
 - `whatHappened` summary
@@ -161,6 +186,7 @@ A `SceneFusion` object:
 - `confidence`
 
 ### Reasoning
+
 - Use OpenRouter with a strong model for higher-level narrative inference.
 - Keep derived text only, not raw audio.
 - Store prompts and model metadata for reproducibility.
@@ -168,7 +194,9 @@ A `SceneFusion` object:
 ## 7) Memory system (Neural Lore-Store)
 
 ### 7.1 Canonical store
+
 Use SQLite as the canonical store for:
+
 - sessions
 - frames metadata
 - audio chunks metadata
@@ -177,6 +205,7 @@ Use SQLite as the canonical store for:
 - extracted lore facts
 
 ### 7.2 Vector store
+
 - Store embeddings for:
   - fused scene summaries
   - extracted symbols and lore candidates
@@ -184,6 +213,7 @@ Use SQLite as the canonical store for:
 - Retrieval powers `seek_to_event` and semantic queries.
 
 ### 7.3 Graph store
+
 - Store entities and relationships:
   - Character
   - Location
@@ -197,6 +227,7 @@ SQLite can host a simple graph model initially (edge list tables). If Neo4j is a
 Current MCP tool list is in [`MovieMCPServer.setupHandlers()`](src/mcp/server.ts:45).
 
 Add or evolve tools (names from the vision statement):
+
 - `watch_stream(url)`
   - Starts session and navigates
   - Returns sessionId
@@ -215,6 +246,7 @@ Expose parallel REST endpoints for local inspection and debugging (pattern alrea
 ## 9) Data model sketch
 
 Extend existing types in [`src/types/index.ts`](src/types/index.ts:1) with:
+
 - `FrameData.videoTimeSec`
 - `AudioChunk`
 - `WhisperSegment`

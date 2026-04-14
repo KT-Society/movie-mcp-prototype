@@ -12,16 +12,30 @@ dotenv.config();
 
 async function main() {
   try {
+    const isStdio = process.argv.includes('--stdio');
+
+    if (isStdio) {
+      // WICHTIG: Wenn Stdio Transport genutzt wird, darf console.log nicht den std-out-Stream verschmutzen,
+      // da sonst das JSON-RPC Protokoll bricht. Wir leiten alle logs nach stderr um.
+      console.log = console.error;
+      console.info = console.error;
+      console.warn = console.error;
+    }
+
     console.log("🎬 Movie MCP Prototype startet...");
     console.log("✨ Entwickelt für Daddy & Habitat 💕");
 
-    // MCP Server starten
-    const mcpServer = new MovieMCPServer();
-    await mcpServer.start();
-
-    // API Server starten
+    // API Server initialisieren
     const apiServer = new APIServer();
     const port = Number(process.env.PORT) || 34563;
+
+    // MCP Server Dual-Mode initialisieren
+    const mcpServer = new MovieMCPServer();
+    if (isStdio) {
+      await mcpServer.startStdio();
+    } else {
+      await mcpServer.startSSE(apiServer.getApp());
+    }
 
     try {
       await apiServer.start(port);
@@ -36,7 +50,11 @@ async function main() {
 
     console.log("🎉 Movie MCP Prototype erfolgreich gestartet!");
     console.log(`📡 API verfügbar unter: http://localhost:${port}`);
-    console.log("🔌 MCP Server läuft über stdio");
+    if (isStdio) {
+      console.log("🔌 MCP Server läuft nativ über STDIO (Antigravity Mode)");
+    } else {
+      console.log(`🔌 MCP Server läuft über HTTP/SSE unter: http://localhost:${port}/sse`);
+    }
     console.log("💬 Bereit für gemeinsames Filmerlebnis mit Habitat!");
 
     // Graceful Shutdown

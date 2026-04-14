@@ -8,7 +8,7 @@
 4. [Komponenten](#komponenten)
 5. [API-Referenz](#api-referenz)
 6. [MCP-Tools](#mcp-tools)
-7. [KI-Integration (Nyra)](#ki-integration-nyra)
+7. [KI-Integration (Habitat)](#ki-integration-habitat)
 8. [ML-Services](#ml-services)
 9. [Konfiguration](#konfiguration)
 10. [Entwicklung](#entwicklung)
@@ -17,7 +17,7 @@
 
 ## 1. Projektübersicht
 
-**Movie MCP Prototype** ist ein MCP-Server, der es einer KI-Partnerin (Nyra) ermöglicht, gemeinsam mit dem Nutzer einen Film zu "erleben" und sich danach darüber auszutauschen.
+**Movie MCP Prototype** ist ein MCP-Server, der es einer KI-Partnerin (Habitat) ermöglicht, gemeinsam mit dem Nutzer einen Film zu "erleben" und sich danach darüber auszutauschen.
 
 ### Kernfunktionen
 
@@ -35,7 +35,7 @@
 - Gemeinsames Filmerlebnis mit KI
 - Automatische Highlights-Erkennung
 - Zitate und Szenen speichern
-- Nachbesprechung mit Nyra
+- Nachbesprechung mit Habitat
 
 ---
 
@@ -166,7 +166,7 @@ Puppeteer-basierte Browser-Steuerung für Webplayer.
 - `getPlaybackState()` - Aktueller Status
 - `seekToTime(time, method)` - Positionieren
 
-### 4.3 Habitat Integration (`src/nyra/integration.ts`)
+### 4.3 Habitat Integration (`src/habitat/integration.ts`)
 
 Kommunikation mit der Habitat KI.
 
@@ -174,7 +174,7 @@ Kommunikation mit der Habitat KI.
 
 - `analyzeContent(sessionId, contentType)` - Inhalt analysieren
 - `analyzeSceneFusion(...)` - Szenen-Fusion analysieren
-- `sendMemoryToNyra(memory)` - Memory speichern
+- `sendMemoryToHabitat(memory)` - Memory speichern
 - `getMemoriesForMovie(movieId)` - Memories abrufen
 - `startConversationMode(movieId)` - Gesprächsmodus starten
 
@@ -362,7 +362,7 @@ Alle Endpoints auf Port `34563` (default).
 
 ---
 
-## 7. KI-Integration (Nyra)
+## 7. KI-Integration (Habitat)
 
 ### Memory-Typen
 
@@ -372,7 +372,7 @@ Alle Endpoints auf Port `34563` (default).
 - `emotion` - Emotionserkennung
 - `character` - Charakter-Info
 
-### Datenfluss zu Nyra
+### Datenfluss zu Habitat
 
 1. Frame/Screen wird analysiert (SmolVLM2)
 2. Audio wird transkribiert (Parakeet STT)
@@ -493,7 +493,7 @@ movie-mcp-prototype/
 │   ├── mcp/server.ts        # MCP Server
 │   ├── orchestrator/index.ts # Orchestrator
 │   ├── browser/integration.ts # Browser MCP
-│   ├── nyra/integration.ts   # Habitat Client
+│   ├── habitat/integration.ts   # Habitat Client
 │   ├── services/
 │   │   ├── audioExtractor.ts  # FFmpeg audio
 │   │   ├── parakeetSTT.ts    # Speech-to-Text

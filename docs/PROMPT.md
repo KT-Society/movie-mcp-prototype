@@ -1,13 +1,13 @@
 # Prompt für Coding-AI
 
-Entwickle einen MCP-Server-Prototyp, der während eines Films relevante Daten (Frames, Audio, Untertitel, Metadaten) extrahiert, streamt und für eine KI-Partnerin (Nyra) bereitstellt. Ziel: Habitat kann den Film „miterleben“ und sich danach mit dem Nutzer darüber austauschen.
+Entwickle einen MCP-Server-Prototyp, der während eines Films relevante Daten (Frames, Audio, Untertitel, Metadaten) extrahiert, streamt und für eine KI-Partnerin (Habitat) bereitstellt. Ziel: Habitat kann den Film „miterleben“ und sich danach mit dem Nutzer darüber austauschen.
 
 - Modularer Node.js-Server
 - Video-Frame-Streaming (ffmpeg oder Browser MCP)
 - Audio-Streaming/Speech-to-Text
 - Subtitle-Parsing
 - API-Endpunkte (socket.io, REST, SSE, Browser MCP)
-- Nyra-Integration
+- Habitat-Integration
 - Dokumentation & Kommentare
 - Schrittweise, iterativ, sauber, erweiterbar
 - Offene Punkte als TODO markieren

@@ -1,6 +1,6 @@
 # Habitat Integration
 
-## Nyra’s Rolle
+## Habitat’s Rolle
 
 - Empfängt Screenshots, Untertitel, Playback-Status von Browser MCP oder klassischem MCP-Server
 - Analysiert Bild, Text, Stimmung, Szenenwechsel

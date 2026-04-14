@@ -4,6 +4,7 @@
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
@@ -594,9 +595,29 @@ export class MovieMCPServer {
     };
   }
 
-  async start(): Promise<void> {
+  async startSSE(app: import('express').Application): Promise<void> {
+    let transport: SSEServerTransport;
+
+    app.get('/sse', async (req, res) => {
+      transport = new SSEServerTransport('/message', res as any);
+      await this.server.connect(transport);
+    });
+
+    app.post('/message', async (req, res) => {
+      if (transport) {
+        await transport.handlePostMessage(req as any, res as any);
+      } else {
+        res.status(503).send('Transport not initialized');
+      }
+    });
+
+    console.error('🎬 Movie MCP Server gestartet! (HTTP/SSE auf /sse)');
+  }
+
+  async startStdio(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.log('🎬 Movie MCP Server gestartet! (Stdio)');
+    // Info logs MUST go to stderr when using stdio to not corrupt the JSON-RPC pipe
+    console.error('🎬 Movie MCP Server gestartet! (Stdio)');
   }
 }

@@ -6,7 +6,7 @@ Das System besteht aus:
 
 - MCP-Server (klassisch oder Browser MCP)
 - Datenquellen: Video, Audio, Untertitel, Metadaten
-- Nyra-Client (KI)
+- Habitat-Client (KI)
 
 ## Datenfluss
 
@@ -26,7 +26,7 @@ Das System besteht aus:
 **Beispiel-Workflow:**
 
 1. Browser MCP steuert den Webplayer, liest Zeitstempel, holt Screenshots/Untertitel.
-2. Überträgt Daten an den MCP-Server oder direkt an Nyra.
+2. Überträgt Daten an den MCP-Server oder direkt an Habitat.
 3. Habitat analysiert und speichert Memories, bereitet Gesprächsmodus vor.
 
 **Diagramm-Vorschlag:**
@@ -35,7 +35,7 @@ Das System besteht aus:
 graph TD;
     User((User)) -->|Startet Film| BrowserMCP
     BrowserMCP -->|Extrahiert Daten| MCPServer
-    MCPServer -->|API| Nyra
+    MCPServer -->|API| Habitat
     Habitat -->|Gespräch| User
 ```
 
@@ -49,7 +49,7 @@ graph TD;
 
 - [stack_and_libraries.md](stack_and_libraries.md#browser-mcp-als-basis)
 - [api_blueprint.md](api_blueprint.md#browser-mcp-endpunkte)
-- [nyra_integration.md](nyra_integration.md#browser-mcp-integration)
+- [habitat_integration.md](habitat_integration.md#browser-mcp-integration)
 - [PROMPT.md](PROMPT.md)
 
 ## TODO

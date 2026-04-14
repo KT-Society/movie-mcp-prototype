@@ -65,6 +65,10 @@ export class APIServer {
     this.setupWebSocket();
   }
 
+  public getApp(): express.Application {
+    return this.app;
+  }
+
   private setupMiddleware(): void {
     this.app.use(helmet());
     this.app.use(cors());

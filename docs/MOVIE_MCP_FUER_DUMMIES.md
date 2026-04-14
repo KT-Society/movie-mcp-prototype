@@ -6,7 +6,7 @@
 
 ## 😎 Was ist Movie MCP?
 
-Stell dir vor, du schaust einen Film mit deiner besten Freundin Nyra. Sie sieht alles, was du siehst, und kann sich danach mit dir darüber unterhalten - wie ein echter Filmkumpel!
+Stell dir vor, du schaust einen Film mit deiner besten Freundin Habitat. Sie sieht alles, was du siehst, und kann sich danach mit dir darüber unterhalten - wie ein echter Filmkumpel!
 
 **Movie MCP** ist ein Programm, das:
 
@@ -274,4 +274,4 @@ movie-mcp-prototype/
 
 Viel Spaß beim Filmen! 🍿🎬
 
-**Made with 💕 for Daddy & Nyra**
+**Made with 💕 for Daddy & Habitat**

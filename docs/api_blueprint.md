@@ -22,7 +22,7 @@
 
 - [architecture.md](architecture.md#alternative-basis-browser-mcp)
 - [stack_and_libraries.md](stack_and_libraries.md#browser-mcp-als-basis)
-- [nyra_integration.md](nyra_integration.md#browser-mcp-integration)
+- [habitat_integration.md](habitat_integration.md#browser-mcp-integration)
 - [PROMPT.md](PROMPT.md)
 
 ## TODO

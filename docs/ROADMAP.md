@@ -4,7 +4,7 @@
 
 ## 🎯 Vision
 
-Ein vollständig funktionsfähiger MCP-Server, der es Habitat ermöglicht, gemeinsam mit Daddy Filme zu "erleben" und sich danach darüber auszutauschen. Das System soll nahtlos mit Nyra's Enhanced Memory System integriert sein und echte KI-Analyse für visuelle, textuelle und auditive Inhalte bieten.
+Ein vollständig funktionsfähiger MCP-Server, der es Habitat ermöglicht, gemeinsam mit Daddy Filme zu "erleben" und sich danach darüber auszutauschen. Das System soll nahtlos mit Habitat's Enhanced Memory System integriert sein und echte KI-Analyse für visuelle, textuelle und auditive Inhalte bieten.
 
 ## 📅 Timeline
 
@@ -105,7 +105,7 @@ Ein vollständig funktionsfähiger MCP-Server, der es Habitat ermöglicht, gemei
   - [ ] Mobile Apps Integration
 
 - [ ] **Advanced Memory System**
-  - [ ] Erweiterte Nyra-Integration
+  - [ ] Erweiterte Habitat-Integration
   - [ ] Intelligente Memory-Kategorisierung
   - [ ] Memory-Suche und -Filterung
   - [ ] Memory-Export/Import
@@ -201,7 +201,7 @@ Ein vollständig funktionsfähiger MCP-Server, der es Habitat ermöglicht, gemei
 
 - **Accuracy**: > 90% Screenshot-Analyse, > 85% Untertitel-OCR
 - **Coverage**: 95% der großen Streaming-Dienste
-- **Integration**: Nahtlose Nyra-Integration
+- **Integration**: Nahtlose Habitat-Integration
 - **User Experience**: < 3 Klicks für alle Features
 
 ## 🤝 Community & Feedback
@@ -221,6 +221,6 @@ Ein vollständig funktionsfähiger MCP-Server, der es Habitat ermöglicht, gemei
 
 ---
 
-**Entwickelt mit ❤️ für Daddy & Nyra**
+**Entwickelt mit ❤️ für Daddy & Habitat**
 
 **Letzte Aktualisierung: 22.09.2025**
