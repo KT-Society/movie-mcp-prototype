@@ -1,5 +1,6 @@
 # 🎬 Movie MCP für Dummies
-## Gemeinsam Filme erleben mit Nyra - So einfach geht's!
+
+## Gemeinsam Filme erleben mit Habitat - So einfach geht's!
 
 ---
 
@@ -8,11 +9,12 @@
 Stell dir vor, du schaust einen Film mit deiner besten Freundin Nyra. Sie sieht alles, was du siehst, und kann sich danach mit dir darüber unterhalten - wie ein echter Filmkumpel!
 
 **Movie MCP** ist ein Programm, das:
+
 - 🎬 Deinen Browser steuert und Screenshots vom Film macht
 - 🎤 Die Sprache im Film versteht (Deutsch, Englisch, etc.)
 - 🖼️ Die Bilder analysiert und beschreibt
 - 💾 Wichtige Sachen merkt (Zitate, Szenen, Charaktere)
-- 🧠 Diese Infos an Nyra schickt
+- 🧠 Diese Infos an Habitat schickt
 
 ---
 
@@ -34,6 +36,7 @@ npm run start
 ```
 
 Du solltest sehen:
+
 ```
 🚀 API Server läuft auf Port 34563
 📡 WebSocket Server bereit
@@ -51,6 +54,7 @@ Du solltest sehen:
 Wenn du das Dashboard öffnest, siehst du:
 
 ### 📺 Session-Steuerung
+
 ```
 ┌─────────────────────────────────────┐
 │  🎬 Movie MCP Steuerzentrale        │
@@ -63,11 +67,13 @@ Wenn du das Dashboard öffnest, siehst du:
 ```
 
 **So funktioniert's:**
+
 1. Film-URL eingeben (z.B. AniWorld, Netflix, YouTube)
 2. Auf "▶️ Start" klicken
 3. Warten bis der Film lädt
 
 ### 📸 Frame-Capture
+
 ```
 ┌─────────────────────────────────────┐
 │  Frame erfassen                     │
@@ -81,11 +87,13 @@ Wenn du das Dashboard öffnest, siehst du:
 ```
 
 **Was passiert:**
+
 - Jeder Klick macht ein Foto vom aktuellen Moment
 - SmolVLM2 (ein KI-Bildprogramm) beschreibt das Bild
 - Tags wie "Innenaufnahme", "Charakter", "dramatisch" werden hinzugefügt
 
 ### 🎤 Spracherkennung (STT)
+
 ```
 ┌─────────────────────────────────────┐
 │  Audio transkribieren               │
@@ -98,11 +106,13 @@ Wenn du das Dashboard öffnest, siehst du:
 ```
 
 **Was passiert:**
+
 - Parakeet wandelt die Sprache in Text um
 - Du siehst, was gesagt wurde
 - Die Texte werden für Scene Fusions verwendet
 
 ### 🎞️ Scene Fusions
+
 ```
 ┌─────────────────────────────────────┐
 │  Szenen verbinden                   │
@@ -119,11 +129,13 @@ Wenn du das Dashboard öffnest, siehst du:
 ```
 
 **Was passiert:**
+
 - Du markierst einen Zeitbereich
 - Das System sammelt alle Frames + Untertitel + Transkription
-- Nyra bekommt eine Zusammenfassung
+- Habitat bekommt eine Zusammenfassung
 
 ### 📚 Lore (Wissensbasis)
+
 ```
 ┌─────────────────────────────────────┐
 │  Wissensdatenbank                    │
@@ -143,8 +155,9 @@ Wenn du das Dashboard öffnest, siehst du:
 ```
 
 **Was passiert:**
+
 - Wichtige Fakten werden gespeichert
-- Nyra kann später darauf zurückgreifen
+- Habitat kann später darauf zurückgreifen
 - Kategorien helfen bei der Organisation
 
 ---
@@ -157,8 +170,8 @@ Wenn du das Dashboard öffnest, siehst du:
 # Server-Port
 PORT=34563
 
-# Nyra KI
-NYRA_API_URL=http://localhost:8080
+# Habitat KI
+HABITAT_API_URL=http://localhost:8080
 USE_REAL_ANALYSIS=false
 
 # Externe Services (optional)
@@ -183,14 +196,14 @@ Wenn du den MCP-Server direkt nutzt:
 
 ### API-Endpoints
 
-| Endpoint | Funktion |
-|----------|----------|
-| `POST /api/sessions` | Neue Session starten |
-| `POST /api/sessions/:id/seek` | Zu Zeitpunkt springen |
-| `POST /api/sessions/:id/analyze-frame` | Frame analysieren |
-| `POST /api/sessions/:id/transcribe` | Audio transkribieren |
-| `POST /api/sessions/:id/scene-fusions` | Scene erstellen |
-| `POST /api/sessions/:id/lore` | Lore hinzufügen |
+| Endpoint                               | Funktion              |
+| -------------------------------------- | --------------------- |
+| `POST /api/sessions`                   | Neue Session starten  |
+| `POST /api/sessions/:id/seek`          | Zu Zeitpunkt springen |
+| `POST /api/sessions/:id/analyze-frame` | Frame analysieren     |
+| `POST /api/sessions/:id/transcribe`    | Audio transkribieren  |
+| `POST /api/sessions/:id/scene-fusions` | Scene erstellen       |
+| `POST /api/sessions/:id/lore`          | Lore hinzufügen       |
 
 ---
 
@@ -213,7 +226,9 @@ A: Nein! Das System hat eingebaute Mock-Analysen. Externe APIs sind optional.
 ## 🆘 Hilfe!
 
 ### Logs lesen
+
 Die Konsole zeigt alles, was passiert:
+
 ```
 🎬 Movie MCP Prototype startet...
 📸 Frame erfasst: frame_123
@@ -222,6 +237,7 @@ Die Konsole zeigt alles, was passiert:
 ```
 
 ### Neustarten
+
 ```bash
 # Strg+C zum Beenden
 npm run start
@@ -232,6 +248,7 @@ npm run start
 ## 📝 Für Entwickler
 
 ### Projekt-Struktur
+
 ```
 movie-mcp-prototype/
 ├── src/
@@ -246,11 +263,12 @@ movie-mcp-prototype/
 ```
 
 ### Nächste Schritte
+
 1. ✅ Dashboard öffnen
 2. ✅ Film starten
 3. ✅ Frames sammeln
 4. ✅ Scene Fusions erstellen
-5. ✅ Mit Nyra sprechen!
+5. ✅ Mit Habitat sprechen!
 
 ---
 

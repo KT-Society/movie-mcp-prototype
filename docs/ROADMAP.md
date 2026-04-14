@@ -4,14 +4,16 @@
 
 ## 🎯 Vision
 
-Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsam mit Daddy Filme zu "erleben" und sich danach darüber auszutauschen. Das System soll nahtlos mit Nyra's Enhanced Memory System integriert sein und echte KI-Analyse für visuelle, textuelle und auditive Inhalte bieten.
+Ein vollständig funktionsfähiger MCP-Server, der es Habitat ermöglicht, gemeinsam mit Daddy Filme zu "erleben" und sich danach darüber auszutauschen. Das System soll nahtlos mit Nyra's Enhanced Memory System integriert sein und echte KI-Analyse für visuelle, textuelle und auditive Inhalte bieten.
 
 ## 📅 Timeline
 
 ### Q4 2025 - Version 0.1.0
+
 **Ziel: Echte KI-Analyse und Audio-Processing**
 
 #### 🎬 Core Features
+
 - [ ] **Echte KI-Analyse**
   - [ ] Computer Vision für Screenshots (OpenCV/TensorFlow)
   - [ ] NLP für Untertitel (Sentiment, Keywords, Entities)
@@ -31,6 +33,7 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
   - [ ] Untertitel-Qualitäts-Bewertung
 
 #### 🔧 Technische Verbesserungen
+
 - [ ] **Performance-Optimierungen**
   - [ ] Async/Await Optimierungen
   - [ ] Memory-Management
@@ -50,9 +53,11 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
   - [ ] Performance Tests
 
 ### Q1 2026 - Version 0.2.0
+
 **Ziel: Production-Ready Features**
 
 #### 🚀 Production Features
+
 - [ ] **Erweiterte Player-Konfigurationen**
   - [ ] Netflix spezifische Integration
   - [ ] Amazon Prime Video Support
@@ -74,6 +79,7 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
   - [ ] Health Checks und Monitoring
 
 #### 🔧 Infrastruktur
+
 - [ ] **Containerisierung**
   - [ ] Docker-Container
   - [ ] Docker Compose Setup
@@ -87,9 +93,11 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
   - [ ] Error Tracking
 
 ### Q2 2026 - Version 1.0.0
+
 **Ziel: Vollständig funktionsfähiger Prototyp**
 
 #### 🎯 Vollständige Features
+
 - [ ] **Multi-Platform Support**
   - [ ] Alle großen Streaming-Dienste
   - [ ] Lokale Video-Dateien
@@ -109,6 +117,7 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
   - [ ] Social Features
 
 #### 🔧 Enterprise Features
+
 - [ ] **Microservices-Architektur**
   - [ ] Service-Discovery
   - [ ] API Gateway
@@ -124,6 +133,7 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
 ## 🎯 Meilensteine
 
 ### Milestone 1: Grundfunktionalität ✅
+
 - [x] MCP Server + API Server
 - [x] Browser Integration (Puppeteer)
 - [x] Screenshot-Capture
@@ -131,24 +141,28 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
 - [x] WebSocket-Events
 
 ### Milestone 2: KI-Analyse (Q4 2025)
+
 - [ ] Computer Vision für Screenshots
 - [ ] NLP für Untertitel
 - [ ] Audio-Feature-Extraktion
 - [ ] Emotionale Analyse
 
 ### Milestone 3: Audio-Processing (Q4 2025)
+
 - [ ] FFmpeg Integration
 - [ ] Real-time Audio-Analyse
 - [ ] Audio-zu-Text Konvertierung
 - [ ] Musik-Erkennung
 
 ### Milestone 4: Production-Ready (Q1 2026)
+
 - [ ] Multi-Platform Support
 - [ ] Privacy & Security
 - [ ] Performance-Optimierungen
 - [ ] Monitoring & Logging
 
 ### Milestone 5: Vollständige Features (Q2 2026)
+
 - [ ] Advanced Memory System
 - [ ] Real-time Collaboration
 - [ ] Microservices-Architektur
@@ -157,16 +171,19 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
 ## 🚧 Aktuelle Prioritäten
 
 ### Hoch (Sofort)
+
 1. **KI-Analyse implementieren** - Computer Vision für Screenshots
 2. **Audio-Processing** - FFmpeg + Meyda Integration
 3. **OCR Untertitel** - Tesseract.js für bessere Untertitel-Extraktion
 
 ### Mittel (Q4 2025)
+
 1. **Performance-Optimierungen** - Caching und Memory-Management
 2. **Erweiterte Browser MCP** - Multi-Platform Support
 3. **Testing** - Unit und Integration Tests
 
 ### Niedrig (Q1 2026)
+
 1. **Production Features** - Security und Monitoring
 2. **Containerisierung** - Docker und CI/CD
 3. **Documentation** - API-Docs und User Guides
@@ -174,12 +191,14 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
 ## 📊 Erfolgsmetriken
 
 ### Technische Metriken
+
 - **Performance**: < 2s Screenshot-Capture, < 5s Audio-Analyse
 - **Reliability**: 99.9% Uptime, < 1% Error Rate
 - **Scalability**: 100+ gleichzeitige Sessions
 - **Security**: 0 kritische Vulnerabilities
 
 ### Feature-Metriken
+
 - **Accuracy**: > 90% Screenshot-Analyse, > 85% Untertitel-OCR
 - **Coverage**: 95% der großen Streaming-Dienste
 - **Integration**: Nahtlose Nyra-Integration
@@ -188,11 +207,13 @@ Ein vollständig funktionsfähiger MCP-Server, der es Nyra ermöglicht, gemeinsa
 ## 🤝 Community & Feedback
 
 ### Feedback-Kanäle
+
 - **GitHub Issues**: Bug Reports und Feature Requests
 - **Discussions**: Community-Feedback und Ideen
 - **Discord**: Real-time Support und Diskussionen
 
 ### Contribution Guidelines
+
 - **Code**: TypeScript, ESLint, Prettier
 - **Testing**: Jest, Supertest, Playwright
 - **Documentation**: Markdown, JSDoc, OpenAPI

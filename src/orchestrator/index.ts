@@ -1,8 +1,8 @@
-import { BrowserMCPIntegration } from '../browser/integration.js';
-import { NyraIntegration } from '../nyra/integration.js';
-import { ParakeetSTTService } from '../services/parakeetSTT.js';
-import { AudioExtractionService } from '../services/audioExtractor.js';
-import { SmolVLM2Service } from '../services/smolVLM2.js';
+import { BrowserMCPIntegration } from "../browser/integration.js";
+import { HabitatIntegration } from "../habitat/integration.js";
+import { ParakeetSTTService } from "../services/parakeetSTT.js";
+import { AudioExtractionService } from "../services/audioExtractor.js";
+import { SmolVLM2Service } from "../services/smolVLM2.js";
 import {
   FrameData,
   SubtitleData,
@@ -15,11 +15,11 @@ import {
   TranscriptionResult,
   ImageAnalysisResult,
   FrameContext,
-} from '../types/index.js';
+} from "../types/index.js";
 
 export class Orchestrator {
   private browser: BrowserMCPIntegration;
-  private nyra: NyraIntegration;
+  private habitat: HabitatIntegration;
   private sttService: ParakeetSTTService;
   private vlmService: SmolVLM2Service;
   private audioExtractor: AudioExtractionService;
@@ -27,10 +27,19 @@ export class Orchestrator {
   private sceneFusionStore: Map<string, SceneFusion[]> = new Map();
   private transcriptionStore: Map<string, TranscriptionResult[]> = new Map();
   private frameContextStore: Map<string, FrameContext[]> = new Map();
+  private activeIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private onDataCaptured?: (
+    sessionId: string,
+    data: {
+      frame?: FrameContext;
+      frameRaw?: FrameData;
+      subtitles?: SubtitleData[];
+    },
+  ) => Promise<void>;
 
-  constructor(browser: BrowserMCPIntegration, nyra: NyraIntegration) {
+  constructor(browser: BrowserMCPIntegration, habitat: HabitatIntegration) {
     this.browser = browser;
-    this.nyra = nyra;
+    this.habitat = habitat;
     this.sttService = new ParakeetSTTService();
     this.vlmService = new SmolVLM2Service();
     this.audioExtractor = new AudioExtractionService();
@@ -55,7 +64,10 @@ export class Orchestrator {
     }));
   }
 
-  async seekToTimeSec(targetSec: number, method: 'exact' | 'keyframes' | 'adaptive' = 'exact'): Promise<void> {
+  async seekToTimeSec(
+    targetSec: number,
+    method: "exact" | "keyframes" | "adaptive" = "exact",
+  ): Promise<void> {
     await this.browser.seekToTime(targetSec, method);
   }
 
@@ -67,12 +79,12 @@ export class Orchestrator {
     subtitleIds: string[];
     whisperSegments?: WhisperSegment[];
   }): Promise<SceneFusion> {
-    const analysis = await this.nyra.analyzeSceneFusion(
+    const analysis = await this.habitat.analyzeSceneFusion(
       params.session.movieId,
       params.startTimeSec,
       params.endTimeSec,
       params.frameIds,
-      params.subtitleIds
+      params.subtitleIds,
     );
 
     const fusion: SceneFusion = {
@@ -100,11 +112,11 @@ export class Orchestrator {
     session: MovieSession;
     category: LoreFactCategory;
     fact: string;
-    source: LoreFact['source'];
+    source: LoreFact["source"];
     referenceIds?: string[];
   }): Promise<LoreFact> {
     const validatedCategory = this.validateLoreCategory(params.category);
-    
+
     const loreFact: LoreFact = {
       id: `lore_${Date.now()}`,
       movieId: params.session.movieId,
@@ -125,19 +137,22 @@ export class Orchestrator {
 
   private validateLoreCategory(category: string): LoreFactCategory {
     const validCategories: Record<string, LoreFactCategory> = {
-      'character': 'character',
-      'location': 'location',
-      'object': 'object',
-      'plot': 'plot',
-      'trivia': 'trivia'
+      character: "character",
+      location: "location",
+      object: "object",
+      plot: "plot",
+      trivia: "trivia",
     };
-    return validCategories[category] || 'trivia';
+    return validCategories[category] || "trivia";
   }
 
-  async getLoreFacts(sessionId: string, category?: LoreFactCategory): Promise<LoreFact[]> {
+  async getLoreFacts(
+    sessionId: string,
+    category?: LoreFactCategory,
+  ): Promise<LoreFact[]> {
     const facts = this.loreStore.get(sessionId) || [];
     if (category) {
-      return facts.filter(f => f.category === category);
+      return facts.filter((f) => f.category === category);
     }
     return facts;
   }
@@ -147,25 +162,25 @@ export class Orchestrator {
   }
 
   async analyzeFrame(frame: FrameData) {
-    return this.nyra.analyzeFrame(frame);
+    return this.habitat.analyzeFrame(frame);
   }
 
   async analyzeFrameWithVLM(frame: FrameData): Promise<ImageAnalysisResult> {
     console.log(`📸 Analysiere Frame mit SmolVLM2: ${frame.id}`);
     const result = await this.vlmService.analyzeFrame(frame);
-    
+
     const existing = this.frameContextStore.get(frame.movieId) || [];
     const context: FrameContext = {
       frameId: frame.id,
       timestamp: frame.videoTimeSec ?? frame.timestamp / 1000,
       analysis: result,
-      keyObjects: result.entities.map(e => e.label).slice(0, 5),
+      keyObjects: result.entities.map((e) => e.label).slice(0, 5),
       textContent: result.textDetected,
-      summarization: `Frame ${frame.id}: ${result.description.substring(0, 100)}`
+      summarization: `Frame ${frame.id}: ${result.description.substring(0, 100)}`,
     };
     existing.push(context);
     this.frameContextStore.set(frame.movieId, existing);
-    
+
     return result;
   }
 
@@ -182,7 +197,7 @@ export class Orchestrator {
   }
 
   async analyzeSubtitle(subtitle: SubtitleData) {
-    return this.nyra.analyzeSubtitle(subtitle);
+    return this.habitat.analyzeSubtitle(subtitle);
   }
 
   async handleAudioChunk(_chunk: AudioChunk) {
@@ -192,33 +207,35 @@ export class Orchestrator {
   async transcribeAudioChunk(chunk: AudioChunk): Promise<TranscriptionResult> {
     console.log(`🎙️ Transkribiere Audio-Chunk im Orchestrator: ${chunk.id}`);
     const result = await this.sttService.transcribeAudioChunk(chunk);
-    
+
     const existing = this.transcriptionStore.get(chunk.movieId) || [];
     existing.push(result);
     this.transcriptionStore.set(chunk.movieId, existing);
-    
+
     return result;
   }
 
   async extractAndTranscribeAudio(
     session: MovieSession,
     startTimeSec: number,
-    durationSec: number
+    durationSec: number,
   ): Promise<TranscriptionResult> {
-    console.log(`🎙️ Extrahiere und transkribiere: ${startTimeSec}s - ${startTimeSec + durationSec}s`);
-    
+    console.log(
+      `🎙️ Extrahiere und transkribiere: ${startTimeSec}s - ${startTimeSec + durationSec}s`,
+    );
+
     const result = await this.sttService.extractAndTranscribe(
       session.id,
       startTimeSec,
-      durationSec
+      durationSec,
     );
-    
+
     if (result.segments.length > 0) {
       const existing = this.transcriptionStore.get(session.movieId) || [];
       existing.push(result);
       this.transcriptionStore.set(session.movieId, existing);
     }
-    
+
     return result;
   }
 
@@ -228,5 +245,96 @@ export class Orchestrator {
 
   setSTTLanguage(language: string): void {
     this.sttService.setLanguage(language);
+  }
+
+  /**
+   * Registriert einen Callback für extrahierte Daten
+   */
+  setDataListener(
+    callback: (
+      sessionId: string,
+      data: { frame?: FrameContext; frameRaw?: FrameData; subtitles?: SubtitleData[] },
+    ) => Promise<void>,
+  ) {
+    this.onDataCaptured = callback;
+  }
+
+  /**
+   * Startet den automatischen Extraktions-Loop (Phase 1: Eye)
+   */
+  async startAutoCapture(
+    session: MovieSession,
+    intervalMs: number = 3000,
+  ): Promise<void> {
+    if (this.activeIntervals.has(session.id)) {
+      console.log(`ℹ️ Capture-Loop läuft bereits für Session ${session.id}`);
+      return;
+    }
+
+    console.log(
+      `🎬 Starte automatischen Capture-Loop (Intervall: ${intervalMs}ms) für Session ${session.id}`,
+    );
+
+    const interval = setInterval(() => {
+      this.runCaptureCycle(session).catch((err) => {
+        console.error(
+          `❌ Fehler im Capture-Cycle für Session ${session.id}:`,
+          err,
+        );
+      });
+    }, intervalMs);
+
+    this.activeIntervals.set(session.id, interval);
+  }
+
+  /**
+   * Stoppt den automatischen Extraktions-Loop
+   */
+  stopAutoCapture(sessionId: string): void {
+    const interval = this.activeIntervals.get(sessionId);
+    if (interval) {
+      clearInterval(interval);
+      this.activeIntervals.delete(sessionId);
+      console.log(`🛑 Capture-Loop für Session ${sessionId} gestoppt.`);
+    }
+  }
+
+  /**
+   * Ein einzelner Durchlauf der Daten-Extraktion
+   */
+  private async runCaptureCycle(session: MovieSession): Promise<void> {
+    if (!session.isActive) {
+      this.stopAutoCapture(session.id);
+      return;
+    }
+
+    console.log(`📸 [Loop] Extrahiere Daten für ${session.movieId}...`);
+
+    try {
+      // 1. Frame erfassen und analysieren (VLM)
+      const frameData = await this.captureFrameWithTiming(session);
+      const frameContext = await this.createFrameContext(frameData);
+
+      // Im Store sichern
+      const existingFrames = this.frameContextStore.get(session.movieId) || [];
+      existingFrames.push(frameContext);
+      this.frameContextStore.set(session.movieId, existingFrames);
+
+      // 2. Untertitel extrahieren
+      const subtitles = await this.captureSubtitles(session);
+
+      // 3. Listener benachrichtigen (speist die Bridge)
+      if (this.onDataCaptured) {
+        await this.onDataCaptured(session.id, {
+          frame: frameContext,
+          frameRaw: frameData,
+          subtitles: subtitles,
+        });
+      }
+
+      console.log(`✅ [Loop] Zyklus abgeschlossen für ${session.movieId}`);
+    } catch (error) {
+      console.error(`❌ [Loop] Kritischer Fehler im Zyklus:`, error);
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { io, Socket } from 'socket.io-client'
 import './index.css'
@@ -108,6 +108,7 @@ function App() {
   const [frameAnalysis, setFrameAnalysis] = useState<Record<string, FrameAnalysis>>({})
   const [newLoreCategory, setNewLoreCategory] = useState<LoreFact['category']>('character')
   const [newLoreFact, setNewLoreFact] = useState('')
+  const [analysisModel, setAnalysisModel] = useState('google/gemini-pro-1.5-vision')
 
   // Connect to WebSocket
   useEffect(() => {
@@ -133,6 +134,13 @@ function App() {
 
     socket.on('transcription_completed', (data: { sessionId: string; result: Transcription }) => {
       setTranscriptions(prev => [...prev, data.result])
+    })
+
+    // Get initial config
+    api.get('/health').then(res => {
+      if (res.data.config) {
+        setAnalysisModel(res.data.config.analysisModel)
+      }
     })
 
     return () => {
@@ -193,7 +201,7 @@ function App() {
   const analyzeFrame = async (frameId: string) => {
     if (!session) return
     try {
-      await api.post(`/api/sessions/${session.id}/analyze-frame`)
+      await api.post(`/api/sessions/${session.id}/analyze-frame`, { frameId })
     } catch (err) {
       console.error('Failed to analyze frame:', err)
     }
@@ -275,6 +283,15 @@ function App() {
     }
   }
 
+  const updateConfig = async (model: string) => {
+    try {
+      setAnalysisModel(model)
+      await api.post('/api/config', { analysisModel: model })
+    } catch (err) {
+      console.error('Failed to update config:', err)
+    }
+  }
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
@@ -325,6 +342,10 @@ function App() {
           <div className={`nav-item ${activeTab === 'lore' ? 'active' : ''}`} onClick={() => setActiveTab('lore')}>
             <span className="nav-icon">📚</span>
             Lore
+          </div>
+          <div className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+            <span className="nav-icon">⚙️</span>
+            Einstellungen
           </div>
         </nav>
 
@@ -534,7 +555,7 @@ function App() {
             {/* Frames Grid */}
             {session && session.data.frames.length > 0 ? (
               <div className="frames-grid">
-                {session.data.frames.map((frame) => (
+                {session.data.frames.slice().reverse().map((frame) => (
                   <div key={frame.id} className="frame-card">
                     <img
                       src={`data:image/jpeg;base64,${frame.imageData}`}
@@ -779,6 +800,48 @@ function App() {
                 </div>
               </div>
             )}
+          </>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <>
+            <div className="page-header">
+              <h1 className="page-title">⚙️ Einstellungen</h1>
+              <p className="page-subtitle">Konfiguriere die Movie Intelligence</p>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <h2 className="card-title">🤖 Analyse-Modell (OpenRouter)</h2>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Modell wählen</label>
+                <select 
+                  className="form-input" 
+                  value={analysisModel}
+                  onChange={(e) => updateConfig(e.target.value)}
+                >
+                  <option value="google/gemini-pro-1.5-vision">Google Gemini Pro 1.5 Vision</option>
+                  <option value="anthropic/claude-3-opus">Anthropic Claude 3 Opus</option>
+                  <option value="anthropic/claude-3-haiku">Anthropic Claude 3 Haiku</option>
+                  <option value="openai/gpt-4-vision-preview">OpenAI GPT-4 Vision</option>
+                  <option value="meta-llama/llama-3-70b-instruct">Llama 3 70B</option>
+                </select>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+                  Dieses Modell wird für die autonomen 3-Sekunden-Analysen verwendet.
+                </p>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <h2 className="card-title">🔑 API Keys</h2>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                Der <strong>OPENROUTER_API_KEY</strong> wird aus der <code>.env</code> Datei geladen.
+              </p>
+            </div>
           </>
         )}
       </main>

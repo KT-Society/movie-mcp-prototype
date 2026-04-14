@@ -9,16 +9,16 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { MovieData, FrameData, SubtitleData, AudioData, PlaybackState, NyraMemory, BrowserMCPConfig, SceneFusion, LoreFact } from '../types/index.js';
+import { MovieData, FrameData, SubtitleData, AudioData, PlaybackState, HabitatMemory, BrowserMCPConfig, SceneFusion, LoreFact, MovieSession } from '../types/index.js';
 import { BrowserMCPIntegration } from '../browser/integration.js';
-import { NyraIntegration } from '../nyra/integration.js';
+import { HabitatIntegration } from '../habitat/integration.js';
 import { Orchestrator } from '../orchestrator/index.js';
 import { HabitatLLMBridge } from '../bridge/habitatBridge.js';
 
 export class MovieMCPServer {
   private server: Server;
   private browserIntegration: BrowserMCPIntegration;
-  private nyraIntegration: NyraIntegration;
+  private habitatIntegration: HabitatIntegration;
   private orchestrator: Orchestrator;
   private habitatBridge: HabitatLLMBridge;
   private activeSessions: Map<string, any> = new Map();
@@ -41,9 +41,9 @@ export class MovieMCPServer {
       timeout: 30000
     };
     this.browserIntegration = new BrowserMCPIntegration(config);
-    this.nyraIntegration = new NyraIntegration();
-    this.orchestrator = new Orchestrator(this.browserIntegration, this.nyraIntegration);
-    this.habitatBridge = new HabitatLLMBridge(this.browserIntegration, this.nyraIntegration);
+    this.habitatIntegration = new HabitatIntegration();
+    this.orchestrator = new Orchestrator(this.browserIntegration, this.habitatIntegration);
+    this.habitatBridge = new HabitatLLMBridge(this.browserIntegration, this.habitatIntegration);
     
     this.setupHandlers();
   }
@@ -184,7 +184,7 @@ export class MovieMCPServer {
           },
           {
             name: 'analyze_content',
-            description: 'Analysiert extrahierte Inhalte für Nyra',
+            description: 'Analysiert extrahierte Inhalte für Habitat',
             inputSchema: {
               type: 'object',
               properties: {
@@ -279,14 +279,26 @@ export class MovieMCPServer {
     await this.browserIntegration.initialize();
     await this.browserIntegration.navigateToUrl(url);
     
-    this.activeSessions.set(sessionId, {
+    const sessionObj: any = {
+      id: sessionId,
       movieId,
       title,
       duration,
       url,
       startTime: new Date(),
-      isActive: true
-    });
+      isActive: true,
+      data: {
+        frames: [],
+        subtitles: [],
+        audio: [],
+        memories: [],
+      }
+    };
+    
+    this.activeSessions.set(sessionId, sessionObj);
+
+    // Bridge über neue Session informieren (startet den Loop)
+    await this.habitatBridge.createSession(sessionObj as MovieSession);
 
     return {
       content: [
@@ -393,7 +405,7 @@ export class MovieMCPServer {
       throw new Error(`Session ${sessionId} nicht gefunden`);
     }
 
-    const analysis = await this.nyraIntegration.analyzeContent(sessionId, contentType);
+    const analysis = await this.habitatIntegration.analyzeContent(sessionId, contentType);
     
     return {
       content: [

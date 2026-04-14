@@ -1,6 +1,6 @@
 /**
  * TypeScript-Typen für den Movie MCP Prototype
- * Definiert alle Datenstrukturen für Film-Extraktion und Nyra-Integration
+ * Definiert alle Datenstrukturen für Film-Extraktion und Habitat-Integration
  */
 
 export interface MovieData {
@@ -81,7 +81,7 @@ export interface PlaybackState {
   timestamp: Date;
 }
 
-export interface NyraMemory {
+export interface HabitatMemory {
   id: string;
   movieId: string;
   type: 'highlight' | 'quote' | 'scene' | 'emotion' | 'character';
@@ -162,7 +162,7 @@ export interface MovieSession {
     subtitles: SubtitleData[];
     audio: AudioData[];
     audioChunks?: AudioChunk[];
-    memories: NyraMemory[];
+    memories: HabitatMemory[];
     sceneFusions?: SceneFusion[];
     loreFacts?: LoreFact[];
   };
@@ -329,7 +329,7 @@ export interface FrameContext {
 }
 
 // Habitat Bridge Types
-export interface HabitatConfig {
+export interface Habitat Config {
   apiUrl: string;
   apiKey?: string;
   modelName: string;
