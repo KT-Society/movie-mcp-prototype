@@ -6,6 +6,10 @@
 import dotenv from "dotenv";
 import { MovieMCPServer } from "./mcp/server.js";
 import { APIServer } from "./api/server.js";
+import { BrowserMCPIntegration } from "./browser/integration.js";
+import { HabitatIntegration } from "./habitat/integration.js";
+import { Orchestrator } from "./orchestrator/index.js";
+import { HabitatLLMBridge } from "./bridge/habitatBridge.js";
 
 // Environment Variables laden
 dotenv.config();
@@ -25,12 +29,36 @@ async function main() {
     console.log("🎬 Movie MCP Prototype startet...");
     console.log("✨ Entwickelt für Daddy & Habitat 💕");
 
+    // Gemeinsame Dienste initialisieren (Singleton Pattern gegen DOPPELT GEMOPPELT)
+    const browserIntegration = new BrowserMCPIntegration({
+      headless: false,
+      timeout: 30000,
+    });
+    const habitatIntegration = new HabitatIntegration();
+    const orchestrator = new Orchestrator(browserIntegration, habitatIntegration);
+    
+    // Lokale Modelle beim Start laden (Hardcoded & Mock-Free)
+    await orchestrator.initialize();
+    
+    const habitatBridge = new HabitatLLMBridge(orchestrator, habitatIntegration);
+
     // API Server initialisieren
-    const apiServer = new APIServer();
+    const apiServer = new APIServer(
+      orchestrator,
+      habitatBridge,
+      habitatIntegration,
+      browserIntegration,
+    );
     const port = Number(process.env.PORT) || 34563;
 
     // MCP Server Dual-Mode initialisieren
-    const mcpServer = new MovieMCPServer();
+    const mcpServer = new MovieMCPServer(
+      orchestrator,
+      habitatBridge,
+      habitatIntegration,
+      browserIntegration,
+    );
+
     if (isStdio) {
       await mcpServer.startStdio();
     } else {

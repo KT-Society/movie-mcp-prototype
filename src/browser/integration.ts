@@ -299,6 +299,72 @@ export class BrowserMCPIntegration {
     }
   }
 
+  async captureAudioContext(durationMs: number = 3000): Promise<Buffer | null> {
+    if (!this.page) return null;
+
+    try {
+      console.log(`🎤 Starte Audio-Mitschnitt für ${durationMs}ms...`);
+      const base64Audio = await this.page.evaluate(async (duration) => {
+        return new Promise<string | null>((resolve) => {
+          const video = document.querySelector('video') as HTMLVideoElement;
+          if (!video) return resolve(null);
+
+          try {
+            // Check for captureStream capability (DRM limits this)
+            const stream = (video as any).captureStream
+              ? (video as any).captureStream()
+              : (video as any).mozCaptureStream
+              ? (video as any).mozCaptureStream()
+              : null;
+              
+            if (!stream) return resolve(null);
+
+            const audioTracks = stream.getAudioTracks();
+            if (audioTracks.length === 0) return resolve(null);
+
+            const audioStream = new MediaStream(audioTracks);
+            const recorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
+            const chunks: Blob[] = [];
+
+            recorder.ondataavailable = (e) => {
+              if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            recorder.onstop = () => {
+              const blob = new Blob(chunks, { type: 'audio/webm' });
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => {
+                const b64 = reader.result as string;
+                const payload = b64.split(',')[1];
+                resolve(payload ?? null);
+              };
+              reader.onerror = () => resolve(null);
+            };
+
+            recorder.start();
+            setTimeout(() => {
+              if (recorder.state === 'recording') recorder.stop();
+            }, duration);
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      }, durationMs);
+
+      if (!base64Audio) {
+        console.log('⚠️ Kein Audio extrahiert (MediaRecorder wurde blockiert oder ist leer).');
+        return null;
+      }
+
+      console.log('✅ Audio erfolgreich abgegriffen!');
+      return Buffer.from(base64Audio, 'base64');
+    } catch (error) {
+      console.log('⚠️ Fehler beim Audio-Capture:', error);
+      return null;
+    }
+  }
+
   async getSubtitles(): Promise<SubtitleData[]> {
     if (!this.page) {
       throw new Error('Browser nicht initialisiert');

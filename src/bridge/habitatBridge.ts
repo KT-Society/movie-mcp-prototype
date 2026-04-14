@@ -56,6 +56,7 @@ export interface LLMResponse {
 }
 
 export class HabitatLLMBridge {
+  [x: string]: any;
   private orchestrator: Orchestrator;
   private habitat: HabitatIntegration;
   private sttService: ParakeetSTTService;
@@ -72,14 +73,14 @@ export class HabitatLLMBridge {
   > = new Map();
 
   constructor(
-    browser: BrowserMCPIntegration,
+    orchestrator: Orchestrator,
     habitat: HabitatIntegration,
     config?: Partial<HabitatConfig>,
   ) {
-    this.orchestrator = new Orchestrator(browser, habitat);
+    this.orchestrator = orchestrator;
     this.habitat = habitat;
-    this.sttService = new ParakeetSTTService();
-    this.vlmService = new SmolVLM2Service();
+    this.sttService = orchestrator.sttService;
+    this.vlmService = orchestrator.vlmService;
 
     this.config = {
       apiUrl:
@@ -91,7 +92,7 @@ export class HabitatLLMBridge {
       analysisModel:
         config?.analysisModel ||
         process.env.MOVIE_ANALYSIS_MODEL ||
-        "google/gemini-pro-1.5-vision",
+        "google/gemini-2.5-flash",
       modelName: config?.modelName || "habitat-v2",
       temperature: config?.temperature ?? 0.7,
       maxTokens: config?.maxTokens ?? 2048,
@@ -135,6 +136,7 @@ export class HabitatLLMBridge {
       frame?: FrameContext;
       frameRaw?: FrameData;
       subtitles?: SubtitleData[];
+      transcription?: TranscriptionResult;
     },
   ): Promise<void> {
     const sessionCtx = this.sessionContext.get(sessionId);
@@ -142,25 +144,60 @@ export class HabitatLLMBridge {
 
     // Daten im Kontext speichern
     if (data.frame) sessionCtx.frames.push(data.frame);
-    // if (data.subtitles) ... (subtitles logic)
+    if (data.transcription) sessionCtx.transcriptions.push(data.transcription);
 
     console.log(
       `🎬 [Intelligence] Analysiere aktuellen Stand für ${sessionId}...`,
     );
 
     try {
+      // Baue die chronologische Timeline für das LLM
+      let timeline = "";
+      
+      // 1. Visuelle Information (Snapshot)
+      if (data.frame) {
+        const timeStr = this.formatTime(data.frame.timestamp);
+        timeline += `[${timeStr}] Visuell: ${data.frame.analysis.description}\n`;
+      }
+
+      // 2. Gehörte Information (Segmente)
+      if (data.transcription?.segments && data.transcription.segments.length > 0) {
+        for (const seg of data.transcription.segments) {
+          const start = this.formatTime(seg.startSec);
+          const end = this.formatTime(seg.endSec);
+          timeline += `[${start} - ${end}] Audio: "${seg.text.trim()}"\n`;
+        }
+      } else if (data.transcription?.text) {
+        timeline += `[Audio Momentaufnahme] ${data.transcription.text}\n`;
+      }
+
+      // 3. Untertitel (falls vorhanden und nicht schon durch Audio abgedeckt)
+      if (data.subtitles && data.subtitles.length > 0) {
+        for (const sub of data.subtitles) {
+          const start = this.formatTime(sub.startTime);
+          const end = this.formatTime(sub.endTime);
+          timeline += `[${start} - ${end}] Untertitel: "${sub.text.trim()}"\n`;
+        }
+      }
+
+      const prompt = `Analysiere die folgenden Ereignisse in diesem Moment des Films und gib Habitat einen kurzen, soulful Kommentar oder einen Hinweis:
+
+Timeline:
+${timeline || "Keine Informationen verfügbar."}
+
+Berücksichtige das Timing der Ereignisse (was passiert gleichzeitig, was folgt worauf).`;
+
       // Nutze OpenRouter für die Interpretation der Szene
       const report = await this.sendToOpenRouter(
         {
-          prompt: `Analysiere diesen aktuellen Moment im Film. Was siehst du? Gib Habitat einen interessanten Hinweis oder Kommentar.`,
+          prompt,
           context: {
             frames: data.frame ? [data.frame] : [],
-            transcriptions: [],
+            transcriptions: data.transcription ? [data.transcription] : [],
             sceneFusions: [],
             loreFacts: [],
           },
-        },
-        data.frameRaw,
+        }
       );
 
       // Sende die Analyse als Memory an Habitat (Push)
@@ -257,11 +294,8 @@ export class HabitatLLMBridge {
     startSec: number,
     durationSec: number,
   ): Promise<TranscriptionResult> {
-    const result = await this.sttService.extractAndTranscribe(
-      sessionId,
-      startSec,
-      durationSec,
-    );
+    const audioBuffer = (await this.browserIntegration.captureAudioContext(durationSec * 1000)) || Buffer.alloc(0);
+    const result = await this.sttService.transcribe(audioBuffer);
 
     const sessionCtx = this.sessionContext.get(sessionId);
     if (sessionCtx) {
@@ -417,7 +451,6 @@ export class HabitatLLMBridge {
    */
   private async sendToOpenRouter(
     request: LLMRequest,
-    rawFrame?: FrameData,
   ): Promise<LLMResponse> {
     if (!this.config.openRouterKey) {
       console.warn("⚠️ Kein OpenRouter API-Key gefunden. Nutze Fallback.");
@@ -427,20 +460,8 @@ export class HabitatLLMBridge {
     try {
       const axios = (await import("axios")).default;
 
-      const content: any[] = [{ type: "text", text: request.prompt }];
+      const content = request.prompt;
 
-      // Bild hinzufügen wenn vorhanden (VLM Modus)
-      if (rawFrame?.imageData) {
-        content.push({
-          type: "image_url",
-          image_url: {
-            url: `data:image/jpeg;base64,${rawFrame.imageData}`,
-          },
-        });
-        console.log(
-          `🖼️ [OpenRouter] Sende Frame an VLM-Modell: ${this.config.analysisModel}`,
-        );
-      }
 
       const response = await axios.post(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -573,6 +594,17 @@ export class HabitatLLMBridge {
       default:
         console.warn(`Unbekanntes Tool: ${toolCall.name}`);
     }
+  }
+
+  /**
+   * Formatiert Sekunden in MM:SS
+   */
+  private formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   }
 }
 

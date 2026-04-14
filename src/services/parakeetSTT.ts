@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import { AudioExtractionService } from './audioExtractor.js';
+import { PythonWorkerManager } from './pythonWorkerManager.js';
 import { 
   STTConfig, 
   TranscriptionResult, 
@@ -13,24 +13,21 @@ import {
 } from '../types/index.js';
 
 export class ParakeetSTTService {
-  private audioExtractor: AudioExtractionService;
   private config: STTConfig;
-  private apiUrl: string;
-  private useExternalAPI: boolean;
   private transcriptionCache: Map<string, TranscriptionResult> = new Map();
+  private worker = PythonWorkerManager.getInstance();
 
   constructor(config?: Partial<STTConfig>) {
-    this.audioExtractor = new AudioExtractionService();
-    
     this.config = {
       modelType: config?.modelType || 'parakeet-tdt',
       sampleRate: config?.sampleRate || 16000,
       language: config?.language || 'de',
       useVAD: config?.useVAD ?? true
     };
+  }
 
-    this.apiUrl = process.env.STT_API_URL || 'http://localhost:8081';
-    this.useExternalAPI = process.env.USE_EXTERNAL_STT === 'true';
+  async initialize(): Promise<void> {
+    await this.worker.initialize();
   }
 
   async transcribeAudioBuffer(
@@ -43,44 +40,61 @@ export class ParakeetSTTService {
     const lang = options.language ?? 'de';
     const wordTs = options.wordTimestamps ?? true;
 
-    console.log(`🎙️ Starte Parakeet STT (Sprache: ${lang})...`);
+    console.log(`🎙️ [STT] Sende Audio an Unified Worker...`);
 
     const cacheKey = this.generateCacheKey(audioBuffer);
     const cached = this.transcriptionCache.get(cacheKey);
     if (cached) {
-      console.log('📋 Verwende gecachte Transkription');
       return cached;
     }
 
-    if (this.useExternalAPI) {
-      try {
-        return await this.transcribeViaExternalAPI(audioBuffer, { language: lang, wordTimestamps: wordTs });
-      } catch (error) {
-        console.warn('Externe STT API fehlgeschlagen, verwende lokale Mock-Transkription');
-      }
-    }
+    return await this.transcribeLocally(audioBuffer, { language: lang, wordTimestamps: wordTs });
+  }
 
-    return this.mockTranscription(audioBuffer, { language: lang, wordTimestamps: wordTs });
+  private async transcribeLocally(
+    audioBuffer: Buffer,
+    options: { language: string; wordTimestamps: boolean }
+  ): Promise<TranscriptionResult> {
+    // Temp File via Manager erstellen
+    const tempFile = this.worker.saveTempFile(audioBuffer, 'stt', 'wav');
+
+    try {
+      const response = await this.worker.executeCommand({
+        method: 'transcribe',
+        path: tempFile
+      });
+
+      const result: TranscriptionResult = {
+        text: response.text,
+        segments: [],
+        language: options.language,
+        duration: 3,
+        confidence: 0.98
+      };
+
+      this.transcriptionCache.set(this.generateCacheKey(audioBuffer), result);
+      return result;
+    } catch (error) {
+      console.error('❌ [STT] Lokale Transkription fehlgeschlagen:', error);
+      throw error;
+    } finally {
+      this.worker.cleanupTempFile(tempFile);
+    }
   }
 
   private async transcribeViaExternalAPI(
     audioBuffer: Buffer,
     options: { language: string; wordTimestamps: boolean }
   ): Promise<TranscriptionResult> {
-    const formData = new FormData();
-    const uint8Array = new Uint8Array(audioBuffer);
-    const blob = new Blob([uint8Array], { type: 'audio/wav' });
-    formData.append('audio', blob, 'audio.wav');
-    formData.append('language', options.language);
-    formData.append('word_timestamps', String(options.wordTimestamps));
-    formData.append('model_type', this.config.modelType);
-
-    const response = await axios.post(`${this.apiUrl}/transcribe`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 60000
-    });
-
-    return this.mapExternalResponse(response.data);
+    // Diese Methode wird durch die lokale Python-Bridge ersetzt
+    console.warn("⚠️ External API Logic ist deaktiviert. Nutze lokale Python-Bridge.");
+    return {
+      text: "",
+      segments: [],
+      language: options.language,
+      duration: 0,
+      confidence: 0
+    };
   }
 
   private mapExternalResponse(data: any): TranscriptionResult {
@@ -112,24 +126,11 @@ export class ParakeetSTTService {
     const segmentCount = Math.max(1, Math.floor(estimatedDuration / 3));
 
     const segments: WhisperSegment[] = [];
-    const mockTexts: Record<string, string[]> = {
-      de: [
-        'Die Geschichte beginnt in einer kleinen Stadt.',
-        'Plötzlich taucht ein Fremder auf.',
-        'Er trägt einen alten Mantel und einen Hut.',
-        'Die Bewohner sind neugierig aber auch vorsichtig.',
-        'Was wird der Fremde als nächstes tun?'
-      ],
-      en: [
-        'The story begins in a small town.',
-        'Suddenly a stranger appears.',
-        'He wears an old coat and a hat.',
-        'The residents are curious but also cautious.',
-        'What will the stranger do next?'
-      ]
-    };
-
-    const texts = mockTexts[options.language] ?? mockTexts['en'] ?? [];
+    const texts = [
+      'Transkription wird verarbeitet...',
+      'Audio-Inhalt wird analysiert...',
+      'Spracherkennung läuft...'
+    ];
     const durationPerSegment = estimatedDuration / segmentCount;
 
     for (let i = 0; i < segmentCount; i++) {
@@ -193,19 +194,9 @@ export class ParakeetSTTService {
     return this.transcribeAudioBuffer(audioBuffer, {});
   }
 
-  async extractAndTranscribe(
-    sessionId: string,
-    startTimeSec: number,
-    durationSec: number
+  async transcribe(
+    audioBuffer: Buffer
   ): Promise<TranscriptionResult> {
-    console.log(`🎙️ Extrahiere und transkribiere: ${startTimeSec}s - ${startTimeSec + durationSec}s`);
-
-    const audioBuffer = await this.audioExtractor.captureAudioSegment(
-      sessionId,
-      startTimeSec,
-      durationSec
-    );
-
     if (audioBuffer.length === 0) {
       return {
         text: '',

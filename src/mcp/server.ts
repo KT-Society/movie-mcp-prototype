@@ -24,7 +24,12 @@ export class MovieMCPServer {
   private habitatBridge: HabitatLLMBridge;
   private activeSessions: Map<string, any> = new Map();
 
-  constructor() {
+  constructor(
+    orchestrator: Orchestrator,
+    habitatBridge: HabitatLLMBridge,
+    habitatIntegration: HabitatIntegration,
+    browserIntegration: BrowserMCPIntegration
+  ) {
     this.server = new Server(
       {
         name: 'movie-mcp-prototype',
@@ -37,14 +42,10 @@ export class MovieMCPServer {
       }
     );
 
-    const config: BrowserMCPConfig = {
-      headless: false,
-      timeout: 30000
-    };
-    this.browserIntegration = new BrowserMCPIntegration(config);
-    this.habitatIntegration = new HabitatIntegration();
-    this.orchestrator = new Orchestrator(this.browserIntegration, this.habitatIntegration);
-    this.habitatBridge = new HabitatLLMBridge(this.browserIntegration, this.habitatIntegration);
+    this.orchestrator = orchestrator;
+    this.habitatBridge = habitatBridge;
+    this.habitatIntegration = habitatIntegration;
+    this.browserIntegration = browserIntegration;
     
     this.setupHandlers();
   }

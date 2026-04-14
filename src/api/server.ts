@@ -34,7 +34,12 @@ export class APIServer {
   };
   private habitatIntegration: HabitatIntegration;
 
-  constructor() {
+  constructor(
+    orchestrator: Orchestrator,
+    habitatBridge: HabitatLLMBridge,
+    habitatIntegration: HabitatIntegration,
+    browserIntegration: BrowserMCPIntegration,
+  ) {
     this.app = express();
     this.server = createServer(this.app);
     this.io = new SocketIOServer(this.server, {
@@ -44,21 +49,10 @@ export class APIServer {
       },
     });
 
-    const config: BrowserMCPConfig = {
-      headless: false,
-      timeout: 30000,
-    };
-    this.browserIntegration = new BrowserMCPIntegration(config);
-    this.habitatIntegration = new HabitatIntegration();
-    this.orchestrator = new Orchestrator(
-      this.browserIntegration,
-      this.habitatIntegration,
-    );
-    this.habitatBridge = new HabitatLLMBridge(
-      this.browserIntegration,
-      this.habitatIntegration,
-      { analysisModel: this.globalConfig.analysisModel },
-    );
+    this.browserIntegration = browserIntegration;
+    this.habitatIntegration = habitatIntegration;
+    this.orchestrator = orchestrator;
+    this.habitatBridge = habitatBridge;
 
     this.setupMiddleware();
     this.setupRoutes();

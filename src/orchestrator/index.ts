@@ -1,7 +1,6 @@
 import { BrowserMCPIntegration } from "../browser/integration.js";
 import { HabitatIntegration } from "../habitat/integration.js";
 import { ParakeetSTTService } from "../services/parakeetSTT.js";
-import { AudioExtractionService } from "../services/audioExtractor.js";
 import { SmolVLM2Service } from "../services/smolVLM2.js";
 import {
   FrameData,
@@ -18,11 +17,10 @@ import {
 } from "../types/index.js";
 
 export class Orchestrator {
-  private browser: BrowserMCPIntegration;
-  private habitat: HabitatIntegration;
-  private sttService: ParakeetSTTService;
-  private vlmService: SmolVLM2Service;
-  private audioExtractor: AudioExtractionService;
+  public browser: BrowserMCPIntegration;
+  public habitat: HabitatIntegration;
+  public sttService: ParakeetSTTService;
+  public vlmService: SmolVLM2Service;
   private loreStore: Map<string, LoreFact[]> = new Map();
   private sceneFusionStore: Map<string, SceneFusion[]> = new Map();
   private transcriptionStore: Map<string, TranscriptionResult[]> = new Map();
@@ -34,6 +32,7 @@ export class Orchestrator {
       frame?: FrameContext;
       frameRaw?: FrameData;
       subtitles?: SubtitleData[];
+      transcription?: TranscriptionResult;
     },
   ) => Promise<void>;
 
@@ -42,7 +41,18 @@ export class Orchestrator {
     this.habitat = habitat;
     this.sttService = new ParakeetSTTService();
     this.vlmService = new SmolVLM2Service();
-    this.audioExtractor = new AudioExtractionService();
+  }
+
+  /**
+   * Initialisiert alle lokalen Modelle
+   */
+  async initialize(): Promise<void> {
+    console.log('🧠 [Orchestrator] Initialisiere lokale KI-Modelle...');
+    await Promise.all([
+      this.sttService.initialize ? this.sttService.initialize() : Promise.resolve(),
+      this.vlmService.initialize ? this.vlmService.initialize() : Promise.resolve()
+    ]);
+    console.log('✅ [Orchestrator] Alle Modelle sind einsatzbereit.');
   }
 
   async captureFrameWithTiming(session: MovieSession): Promise<FrameData> {
@@ -221,14 +231,11 @@ export class Orchestrator {
     durationSec: number,
   ): Promise<TranscriptionResult> {
     console.log(
-      `🎙️ Extrahiere und transkribiere: ${startTimeSec}s - ${startTimeSec + durationSec}s`,
+      `🎙️ Erfasse und transkribiere: ${startTimeSec}s - ${startTimeSec + durationSec}s`,
     );
 
-    const result = await this.sttService.extractAndTranscribe(
-      session.id,
-      startTimeSec,
-      durationSec,
-    );
+    const audioBuffer = (await this.browser.captureAudioContext(durationSec * 1000)) || Buffer.alloc(0);
+    const result = await this.sttService.transcribe(audioBuffer);
 
     if (result.segments.length > 0) {
       const existing = this.transcriptionStore.get(session.movieId) || [];
@@ -253,7 +260,12 @@ export class Orchestrator {
   setDataListener(
     callback: (
       sessionId: string,
-      data: { frame?: FrameContext; frameRaw?: FrameData; subtitles?: SubtitleData[] },
+      data: {
+        frame?: FrameContext;
+        frameRaw?: FrameData;
+        subtitles?: SubtitleData[];
+        transcription?: TranscriptionResult;
+      },
     ) => Promise<void>,
   ) {
     this.onDataCaptured = callback;
@@ -320,16 +332,29 @@ export class Orchestrator {
       existingFrames.push(frameContext);
       this.frameContextStore.set(session.movieId, existingFrames);
 
-      // 2. Untertitel extrahieren
-      const subtitles = await this.captureSubtitles(session);
+      // 3. Audio extrahieren und transkribieren
+      let transcription: TranscriptionResult | undefined;
+      try {
+        transcription = await this.extractAndTranscribeAudio(session, frameData.videoTimeSec || 0, 3);
+      } catch (audioErr) {
+        console.warn('⚠️ Audio-Extraktion fehlgeschlagen, fahre ohne Audio fort:', audioErr);
+      }
 
-      // 3. Listener benachrichtigen (speist die Bridge)
+      // 4. Listener benachrichtigen (speist die Bridge)
       if (this.onDataCaptured) {
-        await this.onDataCaptured(session.id, {
+        const subtitles = await this.captureSubtitles(session);
+        const captureData: any = {
           frame: frameContext,
           frameRaw: frameData,
           subtitles: subtitles,
-        });
+        };
+        
+        // Bei exactOptionalPropertyTypes: true darf kein 'undefined' übergeben werden
+        if (transcription) {
+          captureData.transcription = transcription;
+        }
+
+        await this.onDataCaptured(session.id, captureData);
       }
 
       console.log(`✅ [Loop] Zyklus abgeschlossen für ${session.movieId}`);

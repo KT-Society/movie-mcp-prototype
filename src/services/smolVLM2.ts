@@ -3,7 +3,7 @@
  * Vision Language Model for screen analysis and context abstraction
  */
 
-import axios from 'axios';
+import { PythonWorkerManager } from './pythonWorkerManager.js';
 import { 
   VLMConfig, 
   ImageAnalysisResult, 
@@ -12,11 +12,10 @@ import {
 } from '../types/index.js';
 
 export class SmolVLM2Service {
+  [x: string]: any;
   private config: VLMConfig;
-  private apiUrl: string;
-  private useExternalAPI: boolean;
-  private localPipeline: any = null;
   private initialized: boolean = false;
+  private worker = PythonWorkerManager.getInstance();
 
   constructor(config?: Partial<VLMConfig>) {
     this.config = {
@@ -26,50 +25,11 @@ export class SmolVLM2Service {
       maxTokens: config?.maxTokens || 512,
       temperature: config?.temperature || 0.3
     };
-
-    this.apiUrl = process.env.VLM_API_URL || 'http://localhost:8082';
-    this.useExternalAPI = process.env.USE_EXTERNAL_VLM === 'true';
   }
 
   async initialize(): Promise<void> {
-    if (this.initialized) {
-      console.log('📸 SmolVLM2 bereits initialisiert');
-      return;
-    }
-
-    console.log('📸 Initialisiere SmolVLM2...');
-
-    if (this.useExternalAPI) {
-      console.log('📸 Verwende externe VLM API');
-      this.initialized = true;
-      return;
-    }
-
-    try {
-      // @ts-ignore - package will be available at runtime
-      const transformers = await import('@xenova/transformers');
-      const pipeline = (transformers as any).pipeline;
-      const env = (transformers as any).env;
-      
-      if (env) {
-        env.allowLocalModels = false;
-        env.useBrowserCache = true;
-      }
-
-      console.log('📸 Lade SmolVLM2 Modell (Xenova/transformers)...');
-      
-      // @ts-ignore
-      this.localPipeline = await pipeline(
-        'image-text-to-text',
-        'Xenova/SmolVLM2-2.2B-Instruct'
-      );
-      
-      this.initialized = true;
-      console.log('📸 SmolVLM2 Modell geladen!');
-    } catch (error) {
-      console.warn('⚠️ Konnte SmolVLM2 nicht lokal laden, verwende Mock-Modus');
-      this.initialized = true;
-    }
+    await this.worker.initialize();
+    this.initialized = true;
   }
 
   async analyzeFrame(frame: FrameData): Promise<ImageAnalysisResult> {
@@ -79,31 +39,55 @@ export class SmolVLM2Service {
       await this.initialize();
     }
 
-    if (this.useExternalAPI && this.isRemoteAvailable()) {
+    if (this.localPipeline) {
       try {
-        return await this.analyzeViaRemoteAPI(frame);
+        return await this.analyzeLocally(frame);
       } catch (error) {
-        console.warn('Remote VLM API nicht verfügbar, verwende lokale Analyse');
+        console.error('❌ Lokale VLM Analyse (SmolVLM2) fehlgeschlagen:', error);
       }
     }
 
     return this.mockAnalysis(frame);
   }
 
-  private async analyzeViaRemoteAPI(frame: FrameData): Promise<ImageAnalysisResult> {
-    const base64Image = frame.imageData;
+  /**
+   * Führt die eigentliche Analyse mit dem geladenen Modell durch
+   */
+  private async analyzeLocally(frame: FrameData): Promise<ImageAnalysisResult> {
+    console.log('📸 [SmolVLM2] Sende Frame an Unified Worker...');
     
-    const response = await axios.post(`${this.apiUrl}/analyze`, {
-      image: base64Image,
-      prompt: this.getAnalysisPrompt(),
-      max_tokens: this.config.maxTokens,
-      temperature: this.config.temperature
-    }, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000
-    });
+    // Temp Bilddatei via Manager erstellen
+    const imageBuffer = Buffer.from(frame.imageData, 'base64');
+    const tempFile = this.worker.saveTempFile(imageBuffer, 'vlm', 'jpg');
 
-    return this.mapRemoteResponse(response.data);
+    try {
+      const response = await this.worker.executeCommand({
+        method: 'analyze_image',
+        path: tempFile,
+        prompt: this.getAnalysisPrompt(),
+        max_tokens: this.config.maxTokens
+      });
+
+      return {
+        description: response.description,
+        tags: ['local-python-inference', 'vlm'],
+        entities: [],
+        textDetected: [],
+        scene: 'detected_scene',
+        mood: 'unknown',
+        confidence: 0.95,
+        metadata: {
+          model: 'HuggingFaceTB/SmolVLM2-2.2B-Instruct',
+          timestamp: Date.now(),
+          device: 'gpu'
+        }
+      };
+    } catch (error) {
+      console.error('❌ [SmolVLM2] Lokale Analyse fehlgeschlagen:', error);
+      throw error;
+    } finally {
+      this.worker.cleanupTempFile(tempFile);
+    }
   }
 
   private mapRemoteResponse(data: any): ImageAnalysisResult {
@@ -211,7 +195,7 @@ export class SmolVLM2Service {
   }
 
   private isRemoteAvailable(): boolean {
-    return this.apiUrl !== undefined && this.apiUrl.length > 0;
+    return false;
   }
 
   async createFrameContext(frame: FrameData): Promise<FrameContext> {

@@ -20,7 +20,7 @@ export class HabitatIntegration {
     this.apiUrl =
       apiUrl || process.env.HABITAT_API_URL || "http://localhost:8080";
     this.apiKey = apiKey || process.env.HABITAT_API_KEY || "";
-    this.useRealService = process.env.USE_REAL_ANALYSIS === "true";
+    this.useRealService = process.env.USE_REAL_ANALYSIS !== "false"; // Default true for real API
   }
 
   async analyzeContent(
