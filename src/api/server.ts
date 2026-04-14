@@ -18,7 +18,7 @@ import {
   BrowserMCPConfig,
   FrameContext,
 } from "../types/index.js";
-import { HabitatLLMBridge } from "../bridge/habitatBridge.js";
+import { NarratorBridge } from "../bridge/habitatBridge.js";
 
 export class APIServer {
   private app: express.Application;
@@ -26,7 +26,7 @@ export class APIServer {
   private io: SocketIOServer;
   private browserIntegration: BrowserMCPIntegration;
   private orchestrator: Orchestrator;
-  private habitatBridge: HabitatLLMBridge;
+  private narrator!: NarratorBridge;
   private activeSessions: Map<string, MovieSession> = new Map();
   private globalConfig = {
     analysisModel:
@@ -36,7 +36,7 @@ export class APIServer {
 
   constructor(
     orchestrator: Orchestrator,
-    habitatBridge: HabitatLLMBridge,
+    narrator: NarratorBridge,
     habitatIntegration: HabitatIntegration,
     browserIntegration: BrowserMCPIntegration,
   ) {
@@ -52,7 +52,7 @@ export class APIServer {
     this.browserIntegration = browserIntegration;
     this.habitatIntegration = habitatIntegration;
     this.orchestrator = orchestrator;
-    this.habitatBridge = habitatBridge;
+    this.narrator = narrator;
 
     this.setupMiddleware();
     this.setupRoutes();
@@ -120,7 +120,7 @@ export class APIServer {
         this.activeSessions.set(sessionId, session);
 
         // Bridge über neue Session informieren (startet den Loop)
-        await this.habitatBridge.createSession(session);
+        await this.narrator.createSession(session);
 
         res.json({
           success: true,

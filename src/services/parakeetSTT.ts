@@ -48,7 +48,12 @@ export class ParakeetSTTService {
       return cached;
     }
 
-    return await this.transcribeLocally(audioBuffer, { language: lang, wordTimestamps: wordTs });
+    try {
+      return await this.transcribeLocally(audioBuffer, { language: lang, wordTimestamps: wordTs });
+    } catch (error) {
+      console.error('❌ [STT] Transkription fehlgeschlagen:', error);
+      throw new Error("Transkription fehlgeschlagen - Kein Mock-Fallback verfügbar.");
+    }
   }
 
   private async transcribeLocally(
@@ -64,12 +69,16 @@ export class ParakeetSTTService {
         path: tempFile
       });
 
+      if (!response || response.text === undefined) {
+        throw new Error("Ungültige Antwort vom STT Worker");
+      }
+
       const result: TranscriptionResult = {
         text: response.text,
-        segments: [],
+        segments: response.segments || [],
         language: options.language,
-        duration: 3,
-        confidence: 0.98
+        duration: response.duration || 3,
+        confidence: response.confidence || 0.98
       };
 
       this.transcriptionCache.set(this.generateCacheKey(audioBuffer), result);
@@ -82,108 +91,8 @@ export class ParakeetSTTService {
     }
   }
 
-  private async transcribeViaExternalAPI(
-    audioBuffer: Buffer,
-    options: { language: string; wordTimestamps: boolean }
-  ): Promise<TranscriptionResult> {
-    // Diese Methode wird durch die lokale Python-Bridge ersetzt
-    console.warn("⚠️ External API Logic ist deaktiviert. Nutze lokale Python-Bridge.");
-    return {
-      text: "",
-      segments: [],
-      language: options.language,
-      duration: 0,
-      confidence: 0
-    };
-  }
-
-  private mapExternalResponse(data: any): TranscriptionResult {
-    const segments: WhisperSegment[] = (data.segments || []).map((seg: any) => ({
-      id: seg.id || `seg_${Date.now()}_${Math.random()}`,
-      text: seg.text || '',
-      startSec: seg.start || 0,
-      endSec: seg.end || 0,
-      confidence: seg.confidence || 0.9,
-      language: data.language ?? 'de'
-    }));
-
-    return {
-      text: data.text || segments.map((s: WhisperSegment) => s.text).join(' '),
-      segments,
-      language: data.language ?? 'de',
-      duration: data.duration || 0,
-      confidence: data.confidence || 0.85
-    };
-  }
-
-  private async mockTranscription(
-    audioBuffer: Buffer,
-    options: { language: string; wordTimestamps: boolean }
-  ): Promise<TranscriptionResult> {
-    console.log('🎭 Mock-Transkription (keine echte Parakeet-Verbindung)');
-
-    const estimatedDuration = Math.max(1, Math.min(30, audioBuffer.length / 32000));
-    const segmentCount = Math.max(1, Math.floor(estimatedDuration / 3));
-
-    const segments: WhisperSegment[] = [];
-    const texts = [
-      'Transkription wird verarbeitet...',
-      'Audio-Inhalt wird analysiert...',
-      'Spracherkennung läuft...'
-    ];
-    const durationPerSegment = estimatedDuration / segmentCount;
-
-    for (let i = 0; i < segmentCount; i++) {
-      const text = texts[i % texts.length] ?? 'Sample text';
-      const segment: WhisperSegment = {
-        id: `mock_seg_${i}`,
-        text: text,
-        startSec: i * durationPerSegment,
-        endSec: (i + 1) * durationPerSegment,
-        confidence: 0.7 + Math.random() * 0.2,
-        language: options.language,
-      };
-      if (options.wordTimestamps) {
-        const words = this.generateMockWords(text, i * durationPerSegment);
-        if (words) {
-          segment.words = words;
-        }
-      }
-      segments.push(segment);
-    }
-
-    const result: TranscriptionResult = {
-      text: segments.map(s => s.text).join(' '),
-      segments,
-      language: options.language,
-      duration: estimatedDuration,
-      confidence: 0.75
-    };
-
-    const cacheKey = Buffer.from(audioBuffer.slice(0, 1000)).toString('base64');
-    this.transcriptionCache.set(cacheKey, result);
-
-    return result;
-  }
-
-  private generateMockWords(text: string, startTime: number): WhisperSegment['words'] | undefined {
-    const words = text.split(' ');
-    const avgDuration = 3 / words.length;
-    let currentTime = startTime;
-
-    return words.map(word => {
-      const wordObj = {
-        text: word,
-        startSec: currentTime,
-        endSec: currentTime + avgDuration,
-        probability: 0.7 + Math.random() * 0.25
-      };
-      currentTime += avgDuration;
-      return wordObj;
-    });
-  }
-
   private generateCacheKey(buffer: Buffer): string {
+    // Einfacher Hash aus den ersten 1000 Bytes
     return Buffer.from(buffer.slice(0, 1000)).toString('base64');
   }
 

@@ -1,8 +1,3 @@
-/**
- * MCP-Server für Movie-Prototype
- * Stdio Transport mit Express HTTP Fallback
- */
-
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -10,30 +5,27 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { MovieData, FrameData, SubtitleData, AudioData, PlaybackState, HabitatMemory, BrowserMCPConfig, SceneFusion, LoreFact, MovieSession } from '../types/index.js';
+import { MovieSession, FrameData, SubtitleData, TranscriptionResult } from '../types/index.js';
 import { BrowserMCPIntegration } from '../browser/integration.js';
-import { HabitatIntegration } from '../habitat/integration.js';
 import { Orchestrator } from '../orchestrator/index.js';
-import { HabitatLLMBridge } from '../bridge/habitatBridge.js';
+import { NarratorBridge } from '../bridge/habitatBridge.js'; // Dateiname vorerst gleich
 
 export class MovieMCPServer {
   private server: Server;
   private browserIntegration: BrowserMCPIntegration;
-  private habitatIntegration: HabitatIntegration;
   private orchestrator: Orchestrator;
-  private habitatBridge: HabitatLLMBridge;
+  private narrator: NarratorBridge;
   private activeSessions: Map<string, any> = new Map();
 
   constructor(
     orchestrator: Orchestrator,
-    habitatBridge: HabitatLLMBridge,
-    habitatIntegration: HabitatIntegration,
+    narrator: NarratorBridge,
     browserIntegration: BrowserMCPIntegration
   ) {
     this.server = new Server(
       {
-        name: 'movie-mcp-prototype',
-        version: '1.0.0',
+        name: 'movie-mcp-standalone',
+        version: '1.2.0',
       },
       {
         capabilities: {
@@ -43,8 +35,7 @@ export class MovieMCPServer {
     );
 
     this.orchestrator = orchestrator;
-    this.habitatBridge = habitatBridge;
-    this.habitatIntegration = habitatIntegration;
+    this.narrator = narrator;
     this.browserIntegration = browserIntegration;
     
     this.setupHandlers();
@@ -57,13 +48,12 @@ export class MovieMCPServer {
         tools: [
           {
             name: 'start_movie_session',
-            description: 'Startet eine neue Film-Session für Datenextraktion',
+            description: 'Startet eine neue Film-Session (Standalone)',
             inputSchema: {
               type: 'object',
               properties: {
                 movieId: { type: 'string' },
                 title: { type: 'string' },
-                duration: { type: 'number' },
                 url: { type: 'string' }
               },
               required: ['movieId', 'title', 'url']
@@ -81,136 +71,20 @@ export class MovieMCPServer {
             }
           },
           {
-            name: 'get_playback_state',
-            description: 'Holt den aktuellen Playback-Status',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' }
-              },
-              required: ['sessionId']
-            }
-          },
-          {
-            name: 'capture_frame',
-            description: 'Erfasst einen Screenshot vom aktuellen Frame',
+            name: 'chat_with_movie',
+            description: 'Frage den Movie MCP Narrator basierend auf dem Film-Kontext',
             inputSchema: {
               type: 'object',
               properties: {
                 sessionId: { type: 'string' },
-                timestamp: { type: 'number' }
-              },
-              required: ['sessionId']
-            }
-          },
-          {
-            name: 'get_subtitles',
-            description: 'Holt aktuelle Untertitel',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                timestamp: { type: 'number' }
-              },
-              required: ['sessionId']
-            }
-          },
-          {
-            name: 'seek_to_time',
-            description: 'Springt zu einer bestimmten Zeitposition im Video',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                targetTimeSec: { type: 'number', description: 'Zielzeit in Sekunden' },
-                method: { type: 'string', enum: ['exact', 'keyframes', 'adaptive'], description: 'Seek-Methode' }
-              },
-              required: ['sessionId', 'targetTimeSec']
-            }
-          },
-          {
-            name: 'create_scene_fusion',
-            description: 'Erstellt eine Szenen-Fusion aus Frames und Untertiteln',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                startTimeSec: { type: 'number' },
-                endTimeSec: { type: 'number' },
-                frameIds: { type: 'array', items: { type: 'string' } },
-                subtitleIds: { type: 'array', items: { type: 'string' } },
-                autoGenerate: { type: 'boolean', description: 'Automatisch Synopsis generieren' }
-              },
-              required: ['sessionId', 'startTimeSec', 'endTimeSec']
-            }
-          },
-          {
-            name: 'add_lore_fact',
-            description: 'Fügt einen Lore-Fakt zur Wissensbasis hinzu',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                category: { type: 'string', enum: ['character', 'location', 'object', 'plot', 'trivia'] },
-                fact: { type: 'string' },
-                source: { type: 'string', enum: ['frame', 'subtitle', 'audio', 'scene-fusion', 'manual'] },
-                referenceIds: { type: 'array', items: { type: 'string' } }
-              },
-              required: ['sessionId', 'category', 'fact', 'source']
-            }
-          },
-          {
-            name: 'get_lore_facts',
-            description: 'Holt alle Lore-Fakten für eine Session oder einen Film',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                movieId: { type: 'string' },
-                category: { type: 'string', enum: ['character', 'location', 'object', 'plot', 'trivia'] }
-              },
-              required: ['sessionId']
-            }
-          },
-          {
-            name: 'get_scene_fusions',
-            description: 'Holt alle Szenen-Fusionen für eine Session',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                movieId: { type: 'string' }
-              },
-              required: ['sessionId']
-            }
-          },
-          {
-            name: 'analyze_content',
-            description: 'Analysiert extrahierte Inhalte für Habitat',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                contentType: { type: 'string', enum: ['frame', 'subtitle', 'audio'] }
-              },
-              required: ['sessionId', 'contentType']
-            }
-          },
-          {
-            name: 'chat_with_llm',
-            description: 'Frage den LLM basierend auf dem Film-Kontext',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                question: { type: 'string', description: 'Frage zum Film' }
+                question: { type: 'string', description: 'Deine Frage' }
               },
               required: ['sessionId', 'question']
             }
           },
           {
             name: 'get_session_context',
-            description: 'Holt den gesamten Session-Kontext für den LLM',
+            description: 'Holt die gesamte History-Matrix für eine Soul (Nyra-Ready)',
             inputSchema: {
               type: 'object',
               properties: {
@@ -233,51 +107,26 @@ export class MovieMCPServer {
             return await this.startMovieSession(args);
           case 'stop_movie_session':
             return await this.stopMovieSession(args);
-          case 'get_playback_state':
-            return await this.getPlaybackState(args);
-          case 'capture_frame':
-            return await this.captureFrame(args);
-          case 'get_subtitles':
-            return await this.getSubtitles(args);
-          case 'seek_to_time':
-            return await this.seekToTime(args);
-          case 'create_scene_fusion':
-            return await this.createSceneFusion(args);
-          case 'add_lore_fact':
-            return await this.addLoreFact(args);
-          case 'get_lore_facts':
-            return await this.getLoreFacts(args);
-          case 'get_scene_fusions':
-            return await this.getSceneFusions(args);
-          case 'analyze_content':
-            return await this.analyzeContent(args);
-          case 'chat_with_llm':
-            return await this.chatWithLLM(args);
+          case 'chat_with_movie':
+            return await this.chatWithMovie(args);
           case 'get_session_context':
             return await this.getSessionContext(args);
           default:
-            throw new Error(`Unknown tool: ${name}`);
+            throw new Error(`Tool ${name} nicht verfügbar oder im Standalone-Modus deaktiviert.`);
         }
-      } catch (error) {
+      } catch (error: any) {
         return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-            }
-          ]
+          content: [{ type: 'text', text: `Fehler: ${error.message}` }],
+          isError: true
         };
       }
     });
   }
 
   private async startMovieSession(args: any): Promise<any> {
-    const { movieId, title, duration, url } = args;
+    const { movieId, title, url } = args;
+    const sessionId = `movie_${Date.now()}`;
     
-    // TODO: Implementiere Session-Erstellung
-    const sessionId = `session_${Date.now()}`;
-    
-    // Browser MCP Integration starten
     await this.browserIntegration.initialize();
     await this.browserIntegration.navigateToUrl(url);
     
@@ -285,340 +134,69 @@ export class MovieMCPServer {
       id: sessionId,
       movieId,
       title,
-      duration,
       url,
       startTime: new Date(),
-      isActive: true,
-      data: {
-        frames: [],
-        subtitles: [],
-        audio: [],
-        memories: [],
-      }
+      isActive: true
     };
     
     this.activeSessions.set(sessionId, sessionObj);
-
-    // Bridge über neue Session informieren (startet den Loop)
-    await this.habitatBridge.createSession(sessionObj as MovieSession);
+    await this.narrator.createSession(sessionObj as MovieSession);
 
     return {
-      content: [
-        {
-          type: 'text',
-          text: `Film-Session gestartet: ${title} (ID: ${sessionId})`
-        }
-      ]
+      content: [{ type: 'text', text: `Kinoabend gestartet! 🎬\nTitel: ${title}\nSession-ID: ${sessionId}` }]
     };
   }
 
   private async stopMovieSession(args: any): Promise<any> {
     const { sessionId } = args;
-    
     const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
+    if (!session) throw new Error(`Session ${sessionId} nicht gefunden`);
 
     session.isActive = false;
-    session.endTime = new Date();
-    
-    // Browser MCP Integration beenden
     await this.browserIntegration.cleanup();
     
     return {
-      content: [
-        {
-          type: 'text',
-          text: `Film-Session beendet: ${session.title}`
-        }
-      ]
+      content: [{ type: 'text', text: `Session ${session.title} beendet.` }]
     };
   }
 
-  private async getPlaybackState(args: any): Promise<any> {
-    const { sessionId } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    // TODO: Implementiere Playback-Status-Abfrage über Browser MCP
-    const playbackState = await this.browserIntegration.getPlaybackState();
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Playback-Status: ${JSON.stringify(playbackState, null, 2)}`
-        }
-      ]
-    };
-  }
-
-  private async captureFrame(args: any): Promise<any> {
-    const { sessionId, timestamp } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    // TODO: Implementiere Frame-Capture über Browser MCP
-    const frameData = await this.browserIntegration.captureFrame();
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Frame erfasst: ${frameData.id}`
-        }
-      ]
-    };
-  }
-
-  private async getSubtitles(args: any): Promise<any> {
-    const { sessionId, timestamp } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    // TODO: Implementiere Untertitel-Extraktion über Browser MCP
-    const subtitleData = await this.browserIntegration.getSubtitles();
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Untertitel extrahiert: ${subtitleData.length} Untertitel gefunden`
-        }
-      ]
-    };
-  }
-
-  private async analyzeContent(args: any): Promise<any> {
-    const { sessionId, contentType } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    const analysis = await this.habitatIntegration.analyzeContent(sessionId, contentType);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Content-Analyse abgeschlossen: ${JSON.stringify(analysis, null, 2)}`
-        }
-      ]
-    };
-  }
-
-  private async seekToTime(args: any): Promise<any> {
-    const { sessionId, targetTimeSec, method = 'exact' } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    await this.browserIntegration.seekToTime(targetTimeSec, method);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Zu Zeit ${targetTimeSec}s gesprungen (Methode: ${method})`
-        }
-      ]
-    };
-  }
-
-  private async createSceneFusion(args: any): Promise<any> {
-    const { sessionId, startTimeSec, endTimeSec, frameIds = [], subtitleIds = [], autoGenerate = true } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    const fusion = await this.orchestrator.createSceneFusion({
-      session,
-      startTimeSec,
-      endTimeSec,
-      frameIds,
-      subtitleIds
-    });
-
-    if (!session.data.sceneFusions) {
-      session.data.sceneFusions = [];
-    }
-    session.data.sceneFusions.push(fusion);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Szenen-Fusion erstellt: ${fusion.id} (${startTimeSec}s - ${endTimeSec}s)`
-        }
-      ]
-    };
-  }
-
-  private async addLoreFact(args: any): Promise<any> {
-    const { sessionId, category, fact, source, referenceIds = [] } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    const loreFact = await this.orchestrator.addLoreFact({
-      session,
-      category,
-      fact,
-      source,
-      referenceIds
-    });
-
-    if (!session.data.loreFacts) {
-      session.data.loreFacts = [];
-    }
-    session.data.loreFacts.push(loreFact);
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `Lore-Fakt hinzugefügt: ${loreFact.id} (${category})`
-        }
-      ]
-    };
-  }
-
-  private async getLoreFacts(args: any): Promise<any> {
-    const { sessionId, movieId, category } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    let facts = session.data.loreFacts || [];
-    
-    if (category) {
-      facts = facts.filter((f: { category: string }) => f.category === category);
-    }
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `${facts.length} Lore-Fakten gefunden:\n${JSON.stringify(facts, null, 2)}`
-        }
-      ]
-    };
-  }
-
-  private async getSceneFusions(args: any): Promise<any> {
-    const { sessionId, movieId } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    const fusions = session.data.sceneFusions || [];
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `${fusions.length} Szenen-Fusionen gefunden:\n${JSON.stringify(fusions, null, 2)}`
-        }
-      ]
-    };
-  }
-
-  private async chatWithLLM(args: any): Promise<any> {
+  private async chatWithMovie(args: any): Promise<any> {
     const { sessionId, question } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    try {
-      const response = await this.habitatBridge.processQuery(sessionId, question);
-      
-      return {
-        content: [
-          {
-            type: 'text',
-            text: response.text
-          }
-        ]
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Fehler bei LLM-Anfrage: ${error instanceof Error ? error.message : 'Unknown error'}`
-          }
-        ]
-      };
-    }
+    const response = await this.narrator.processQuery(sessionId, question);
+    return {
+      content: [{ type: 'text', text: response.text }]
+    };
   }
 
   private async getSessionContext(args: any): Promise<any> {
     const { sessionId } = args;
-    
-    const session = this.activeSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} nicht gefunden`);
-    }
-
-    const context = this.habitatBridge.getSessionContext(sessionId);
-    
+    const context = this.narrator.getSessionContext(sessionId);
     return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(context, null, 2)
-        }
-      ]
+      content: [{ type: 'text', text: JSON.stringify(context, null, 2) }]
     };
   }
 
   async startSSE(app: import('express').Application): Promise<void> {
     let transport: SSEServerTransport;
-
     app.get('/sse', async (req, res) => {
+      // Hier fangen wir den Header ab!
+      const soulName = req.headers['mcp_soul_name'] || req.query.soulName;
+      console.error(`👻 Soul verbunden: ${soulName}`);
+      
       transport = new SSEServerTransport('/message', res as any);
       await this.server.connect(transport);
     });
 
     app.post('/message', async (req, res) => {
-      if (transport) {
-        await transport.handlePostMessage(req as any, res as any);
-      } else {
-        res.status(503).send('Transport not initialized');
-      }
+      if (transport) await transport.handlePostMessage(req as any, res as any);
+      else res.status(503).send('Transport not initialized');
     });
-
-    console.error('🎬 Movie MCP Server gestartet! (HTTP/SSE auf /sse)');
+    console.error('🎬 Movie MCP Standalone gestartet! (SSE)');
   }
 
   async startStdio(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    // Info logs MUST go to stderr when using stdio to not corrupt the JSON-RPC pipe
-    console.error('🎬 Movie MCP Server gestartet! (Stdio)');
+    console.error('🎬 Movie MCP Standalone gestartet! (Stdio)');
   }
 }

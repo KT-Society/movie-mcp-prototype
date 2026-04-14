@@ -9,7 +9,7 @@ import { APIServer } from "./api/server.js";
 import { BrowserMCPIntegration } from "./browser/integration.js";
 import { HabitatIntegration } from "./habitat/integration.js";
 import { Orchestrator } from "./orchestrator/index.js";
-import { HabitatLLMBridge } from "./bridge/habitatBridge.js";
+import { NarratorBridge } from "./bridge/habitatBridge.js";
 
 // Environment Variables laden
 dotenv.config();
@@ -35,17 +35,17 @@ async function main() {
       timeout: 30000,
     });
     const habitatIntegration = new HabitatIntegration();
-    const orchestrator = new Orchestrator(browserIntegration, habitatIntegration);
+    const orchestrator = new Orchestrator(browserIntegration);
     
     // Lokale Modelle beim Start laden (Hardcoded & Mock-Free)
     await orchestrator.initialize();
     
-    const habitatBridge = new HabitatLLMBridge(orchestrator, habitatIntegration);
+    const narrator = new NarratorBridge(orchestrator);
 
     // API Server initialisieren
     const apiServer = new APIServer(
       orchestrator,
-      habitatBridge,
+      narrator,
       habitatIntegration,
       browserIntegration,
     );
@@ -54,8 +54,7 @@ async function main() {
     // MCP Server Dual-Mode initialisieren
     const mcpServer = new MovieMCPServer(
       orchestrator,
-      habitatBridge,
-      habitatIntegration,
+      narrator,
       browserIntegration,
     );
 

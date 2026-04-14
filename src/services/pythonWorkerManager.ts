@@ -32,7 +32,8 @@ export class PythonWorkerManager {
       const scriptPath = path.join(process.cwd(), 'scripts', 'movie_worker.py');
       const pythonCmd = process.env.PYTHON_PATH || 'python';
 
-      this.pythonProcess = spawn(pythonCmd, [scriptPath]);
+      // Starte mit -u (unbuffered), um Logs bei einem Crash nicht zu verlieren
+      this.pythonProcess = spawn(pythonCmd, ['-u', scriptPath]);
 
       this.pythonProcess.stdout?.on('data', (data) => {
         const output = data.toString();
@@ -49,6 +50,12 @@ export class PythonWorkerManager {
               resolve();
             } else if (json.status === 'starting' || json.status === 'loading') {
               console.log(`🤖 [PythonWorker] ${json.message || 'Lade Modell: ' + json.model}`);
+            } else if (json.status === 'info') {
+              console.log(`🤖 [PythonWorker] Hardware: ${json.gpu} (CUDA: ${json.cuda_available}, Torch: ${json.torch_version})`);
+            } else if (json.status === 'error') {
+              console.error(`❌ [PythonWorker] Fatale Ausnahme in Python: ${json.error}`);
+              if (json.traceback) console.error(`\n${json.traceback}\n`);
+              reject(new Error(json.error));
             } else if (this.pendingRequest) {
               this.pendingRequest(json);
               this.pendingRequest = null;

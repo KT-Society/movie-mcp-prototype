@@ -98,6 +98,7 @@ function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
   const [playback, setPlayback] = useState<PlaybackState | null>(null)
   const [seekTime, setSeekTime] = useState('')
   const [seekMethod, setSeekMethod] = useState<'exact' | 'keyframes' | 'adaptive'>('exact')
@@ -108,7 +109,7 @@ function App() {
   const [frameAnalysis, setFrameAnalysis] = useState<Record<string, FrameAnalysis>>({})
   const [newLoreCategory, setNewLoreCategory] = useState<LoreFact['category']>('character')
   const [newLoreFact, setNewLoreFact] = useState('')
-  const [analysisModel, setAnalysisModel] = useState('google/gemini-pro-1.5-vision')
+  const [analysisModel, setAnalysisModel] = useState('google/gemini-2.5-flash-preview')
 
   // Connect to WebSocket
   useEffect(() => {
@@ -118,6 +119,11 @@ function App() {
 
     socket.on('connect', () => {
       console.log('Connected to server')
+      setIsConnected(true)
+    })
+
+    socket.on('disconnect', () => {
+      setIsConnected(false)
     })
 
     socket.on('frame_captured', (data: { sessionId: string; frame: Frame }) => {
@@ -350,9 +356,13 @@ function App() {
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+          <div className="status-indicator" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+            <span className={`status-dot ${isConnected ? 'active' : 'inactive'}`}></span>
+            {isConnected ? 'Server verbunden' : 'Nicht verbunden'}
+          </div>
           <div className="status-indicator" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            <span className={`status-dot ${session ? 'active' : 'inactive'}`}></span>
-            {session ? 'Verbunden' : 'Nicht verbunden'}
+            <span className={`status-dot ${session ? 'active' : 'inactive'}`} style={{ background: session ? 'var(--accent)' : undefined }}></span>
+            {session ? 'Session aktiv' : 'Keine Session'}
           </div>
         </div>
       </aside>
@@ -813,7 +823,7 @@ function App() {
 
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">🤖 Analyse-Modell (OpenRouter)</h2>
+                <h2 className="card-title">🤖 Synthese-Modell (OpenRouter)</h2>
               </div>
               <div className="form-group">
                 <label className="form-label">Modell wählen</label>
@@ -822,14 +832,16 @@ function App() {
                   value={analysisModel}
                   onChange={(e) => updateConfig(e.target.value)}
                 >
-                  <option value="google/gemini-pro-1.5-vision">Google Gemini Pro 1.5 Vision</option>
-                  <option value="anthropic/claude-3-opus">Anthropic Claude 3 Opus</option>
-                  <option value="anthropic/claude-3-haiku">Anthropic Claude 3 Haiku</option>
-                  <option value="openai/gpt-4-vision-preview">OpenAI GPT-4 Vision</option>
-                  <option value="meta-llama/llama-3-70b-instruct">Llama 3 70B</option>
+                  <option value="google/gemini-2.5-flash-preview">⚡ Google Gemini 2.5 Flash (Empfohlen)</option>
+                  <option value="google/gemini-2.5-pro-preview">🧠 Google Gemini 2.5 Pro</option>
+                  <option value="anthropic/claude-sonnet-4-5">🎭 Anthropic Claude Sonnet 4.5</option>
+                  <option value="anthropic/claude-haiku-3-5">🐦 Anthropic Claude Haiku 3.5</option>
+                  <option value="openai/gpt-4.1">🟢 OpenAI GPT-4.1</option>
+                  <option value="openai/gpt-4.1-mini">🟩 OpenAI GPT-4.1 Mini</option>
+                  <option value="meta-llama/llama-4-maverick">🦙 Llama 4 Maverick</option>
                 </select>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
-                  Dieses Modell wird für die autonomen 3-Sekunden-Analysen verwendet.
+                  Nur für Text-Synthese (Zeitlinie → Narrative). Vision & Audio laufen lokal via SmolVLM2 + Parakeet. 🔥
                 </p>
               </div>
             </div>
