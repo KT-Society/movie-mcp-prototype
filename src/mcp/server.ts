@@ -176,22 +176,70 @@ export class MovieMCPServer {
     };
   }
 
+  private transports: Map<string, SSEServerTransport> = new Map();
+  private soulToSession: Map<string, string> = new Map();
+  private lastSessionId: string = '';
+
   async startSSE(app: import('express').Application): Promise<void> {
-    let transport: SSEServerTransport;
     app.get('/sse', async (req, res) => {
-      // Hier fangen wir den Header ab!
-      const soulName = req.headers['mcp_soul_name'] || req.query.soulName;
-      console.error(`👻 Soul verbunden: ${soulName}`);
+      const soulName = (req.headers['mcp_soul_name'] || req.query.soulName || 'Unknown-Soul') as string;
+      const sessionId = `soul_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      transport = new SSEServerTransport('/message', res as any);
+      console.error(`👻 [SSE-GET] Verbindung initiiert: ${soulName} | Session: ${sessionId}`);
+      
+      this.soulToSession.set(soulName, sessionId);
+      this.lastSessionId = sessionId;
+      
+      const transport = new SSEServerTransport(`/message?sessionId=${sessionId}`, res as any);
+      this.transports.set(sessionId, transport);
+      
+      res.on('close', () => {
+        console.error(`🔌 [SSE-CLOSE] Leitung unterbrochen: ${soulName} | Session: ${sessionId}`);
+        // WICHTIG: Wir löschen den Transport, aber lassen die Mappings als "Sticky-Fallback" für Reconnects oder POST-Races
+        this.transports.delete(sessionId);
+      });
+
       await this.server.connect(transport);
     });
 
-    app.post('/message', async (req, res) => {
-      if (transport) await transport.handlePostMessage(req as any, res as any);
-      else res.status(503).send('Transport not initialized');
-    });
-    console.error('🎬 Movie MCP Standalone gestartet! (SSE)');
+    const handleMessage = async (req: any, res: any) => {
+      let sessionId = req.query.sessionId as string;
+      const soulName = (req.headers['mcp_soul_name'] || req.query.soulName || 'Unknown-Soul') as string;
+      
+      console.error(`📩 [SSE-POST] Nachricht empfangen | Endpoint: ${req.path} | Soul: ${soulName} | Query-ID: ${sessionId || 'none'}`);
+      
+      // RACING-FIX: Wir geben dem GET-Request bis zu 2 Sekunden Zeit, um die Session zu registrieren
+      let attempts = 0;
+      const maxAttempts = 10; // 10 * 200ms = 2s
+      
+      while (!sessionId && attempts < maxAttempts) {
+        // Mapping Versuche
+        sessionId = this.soulToSession.get(soulName) || this.lastSessionId || '';
+        
+        if (!sessionId) {
+          console.error(`⏳ [SSE-POST] Warte auf Session-Registrierung... (Versuch ${attempts + 1}/${maxAttempts})`);
+          await new Promise(resolve => setTimeout(resolve, 200));
+          attempts++;
+        } else {
+          console.error(`🔗 [SSE-POST] Session gefunden nach ${attempts * 200}ms: ${sessionId}`);
+          break;
+        }
+      }
+
+      const transport = this.transports.get(sessionId);
+      if (transport) {
+        await transport.handlePostMessage(req, res);
+      } else {
+        console.error(`❌ [SSE-POST] Session final nicht gefunden! ID: ${sessionId || 'No ID'} | Map-Größe: ${this.transports.size}`);
+        console.error(`   Aktive Register: ${Array.from(this.transports.keys()).join(', ')}`);
+        res.status(503).send('Session not found - please retry connection');
+      }
+    };
+
+    app.post('/message', handleMessage);
+    app.post('/sse', handleMessage);
+
+    console.error('🎬 Movie MCP Standalone gestartet! (Multi-Soul SSE & Racing-Safe Routing)');
   }
 
   async startStdio(): Promise<void> {

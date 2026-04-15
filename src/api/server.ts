@@ -64,8 +64,20 @@ export class APIServer {
   }
 
   private setupMiddleware(): void {
-    this.app.use(helmet());
-    this.app.use(cors());
+    // Helmet Konfiguration für SSE und Tunnels optimieren
+    this.app.use(helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      contentSecurityPolicy: false, // Deaktivieren für Prototyping/Tunnels
+    }));
+
+    // CORS für alle Ursprünge und den Localtunnel-Bypass-Header erlauben
+    this.app.use(cors({
+      origin: "*",
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "mcp_soul_name", "bypass-tunnel-reminder"],
+      exposedHeaders: ["Location"]
+    }));
+
     this.app.use(express.json({ limit: "50mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "50mb" }));
   }
